@@ -11,6 +11,7 @@ enum class Module(val id: String, val title: String) {
     BREACH("breach", "BREACH"),
     WIFI("wifi", "WIFI-RADAR"),
     BLE("ble", "BLE-RADAR"),
+    ACADEMY("learn", "ACADEMY"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -91,6 +92,7 @@ class Terminal(private val env: TerminalEnv) {
                     "а сетевые инструменты работают только в твоей сети.",
                 ),
             )
+            "learn", "academy" -> Output(listOf("открываю курс Килобайта…"), Action.Open(Module.ACADEMY))
             "wifi" -> Output(listOf("включаю WIFI-радар…"), Action.Open(Module.WIFI))
             "ble", "bt" -> Output(listOf("включаю BLE-радар…"), Action.Open(Module.BLE))
             in EXEC -> {
@@ -149,9 +151,10 @@ class Terminal(private val env: TerminalEnv) {
             "  msg               сообщения группы",
             "  scan              сканер своей сети",
             "  breach            тренажёр взлома",
+            "  learn             курс Python для хакеров",
             "  apps [фильтр]     установленные приложения",
             "  run <имя>         запустить приложение",
-            "  open <модуль>     home / term / scan / msg / breach",
+            "  open <модуль>     home / term / scan / msg / breach / learn",
             "  ip  date  nodes  history  echo  clear  about",
             "",
             "реальные инструменты:",

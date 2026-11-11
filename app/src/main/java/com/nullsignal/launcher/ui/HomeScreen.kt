@@ -108,6 +108,7 @@ fun HomeScreen(vm: LauncherViewModel) {
                 Module.WIFI to "≋ wifi-радар",
                 Module.BLE to "◎ ble-радар",
                 Module.BREACH to "# взлом",
+                Module.ACADEMY to "λ обучение ${vm.lessonsDone.size}/${com.nullsignal.core.academy.Academy.lessons.size}",
             )
             Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 modules.chunked(2).forEach { row ->

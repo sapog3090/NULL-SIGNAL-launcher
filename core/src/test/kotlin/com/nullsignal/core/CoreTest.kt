@@ -164,3 +164,34 @@ class ToolsTest {
         assertEquals(1.0, com.nullsignal.core.terminal.Tools.distanceMeters(-59), 0.001)
     }
 }
+
+class AcademyTest {
+    private val A = com.nullsignal.core.academy.Academy
+    private val L = A.lessons
+
+    @Test fun `lessons are well formed`() {
+        assertEquals(L.size, L.map { it.id }.toSet().size)
+        L.forEach { l ->
+            assertTrue(l.tasks.isNotEmpty())
+            l.tasks.forEach { t ->
+                if (t is com.nullsignal.core.academy.Task.Choice) assertTrue(t.correct in t.options.indices)
+                if (t is com.nullsignal.core.academy.Task.Input) assertTrue(t.answers.isNotEmpty())
+            }
+        }
+    }
+
+    @Test fun `input answers are normalized`() {
+        val t = com.nullsignal.core.academy.Task.Input("q", null, listOf("10.0.0.5:443"), "")
+        assertTrue(A.check(t, "  \"10.0.0.5:443\" "))
+        assertFalse(A.check(t, "10.0.0.5 443"))
+        val c = L[0].tasks[0]
+        assertTrue(A.check(c, "1"))
+        assertFalse(A.check(c, "0"))
+    }
+
+    @Test fun `lessons unlock in order`() {
+        assertTrue(A.unlocked(0, emptySet()))
+        assertFalse(A.unlocked(1, emptySet()))
+        assertTrue(A.unlocked(1, setOf(L[0].id)))
+    }
+}

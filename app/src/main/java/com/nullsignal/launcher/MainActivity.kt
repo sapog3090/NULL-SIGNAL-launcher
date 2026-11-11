@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nullsignal.core.terminal.Module
+import com.nullsignal.launcher.ui.AcademyScreen
 import com.nullsignal.launcher.ui.BleScreen
 import com.nullsignal.launcher.ui.BreachScreen
 import com.nullsignal.launcher.ui.HomeScreen
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
                         Module.BREACH -> BreachScreen(vm, home)
                         Module.WIFI -> WifiScreen(home)
                         Module.BLE -> BleScreen(home)
+                        Module.ACADEMY -> AcademyScreen(vm, home)
                     }
                     AnimatedVisibility(vm.notice != null, modifier = Modifier.align(Alignment.TopCenter)) {
                         Text(

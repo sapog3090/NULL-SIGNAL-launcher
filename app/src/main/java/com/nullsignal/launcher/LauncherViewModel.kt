@@ -82,6 +82,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun markRead() = save(engine.markRead(progress))
 
+    // ---------- ACADEMY ----------
+
+    var lessonsDone by mutableStateOf(prefs.getStringSet("lessons", emptySet())!!.toSet())
+        private set
+
+    fun completeLesson(lesson: com.nullsignal.core.academy.Lesson) {
+        if (lesson.id in lessonsDone) return
+        lessonsDone = lessonsDone + lesson.id
+        prefs.edit().putStringSet("lessons", lessonsDone).apply()
+        save(progress.copy(followers = progress.followers + lesson.reward))
+    }
+
     private fun save(p: Progress) {
         progress = p
         prefs.edit().putInt("chapter", p.chapter).putInt("followers", p.followers).putInt("read", p.readMessages).apply()
