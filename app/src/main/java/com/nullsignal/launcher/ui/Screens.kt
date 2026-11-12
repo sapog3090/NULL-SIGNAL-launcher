@@ -53,45 +53,6 @@ fun asciiBar(p: Float, width: Int = 24): String {
     return "[" + "█".repeat(n) + "·".repeat(width - n) + "] ${(p * 100).toInt()}%"
 }
 
-// ---------------- NETSCAN ----------------
-
-@Composable
-fun NetScanScreen(vm: LauncherViewModel, onBack: () -> Unit) {
-    ModuleScreen("NETSCAN", onBack) {
-        Text("устройства в твоей локальной сети: открытые порты, имена, mDNS-сервисы", style = Ns.small)
-        Spacer(Modifier.height(8.dp))
-        TermButton(if (vm.scanning) "СКАНИРУЮ…" else "НАЧАТЬ СКАН", enabled = !vm.scanning) { vm.startScan() }
-        Spacer(Modifier.height(8.dp))
-        Text(vm.scanState, style = Ns.text.copy(color = Ns.Amber))
-        if (vm.scanning) Text(asciiBar(vm.scanProgress), style = Ns.text)
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(vm.scanHosts, key = { it.ip }) { h ->
-                Column(Modifier.fillMaxWidth().hud(if (h.gateway) Ns.Cyan else Ns.Faint).padding(8.dp)) {
-                    Text(
-                        "${h.ip}${if (h.gateway) "  [РОУТЕР]" else ""}",
-                        style = Ns.text.copy(color = if (h.gateway) Ns.Cyan else Ns.Green),
-                    )
-                    h.name?.let { Text("имя: $it", style = Ns.small) }
-                    Text(
-                        if (h.ports.isEmpty()) "порты: закрыты (устройство в сети)"
-                        else "порты: " + h.ports.joinToString { "$it/${Subnet.COMMON_PORTS[it]}" },
-                        style = Ns.small.copy(color = if (h.ports.isEmpty()) Ns.Dim else Ns.Green),
-                    )
-                    h.ports.mapNotNull { Subnet.ADVICE[it] }.forEach { advice ->
-                        Text("⚠ $advice", style = Ns.small.copy(color = Ns.Amber))
-                    }
-                }
-            }
-            if (vm.mdns.isNotEmpty()) {
-                item { Text("— mDNS: устройства сами представились —", style = Ns.text.copy(color = Ns.Cyan), modifier = Modifier.padding(top = 8.dp)) }
-                items(vm.mdns, key = { it.type + it.name }) { s ->
-                    Text("  ◆ ${s.name}  (${s.type})", style = Ns.small.copy(color = Ns.Green))
-                }
-            }
-        }
-    }
-}
-
 // ---------------- MESSAGES ----------------
 
 @Composable

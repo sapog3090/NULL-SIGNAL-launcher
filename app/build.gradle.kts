@@ -29,7 +29,8 @@ android {
     buildTypes {
         debug { signingConfig = signingConfigs.getByName("ns") }
         release {
-            isMinifyEnabled = true
+            // Без минификации: SSH (JSch) и др. грузят классы по имени — R8 их бы вырезал
+            isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("ns")
         }
@@ -61,5 +62,6 @@ dependencies {
     implementation(libs.exifinterface)       // метаданные фото
     implementation(libs.zxing.core)          // генерация QR
     implementation(libs.gms.code.scanner)    // сканер QR без разрешения на камеру
+    implementation(libs.jsch)                // SSH-клиент
     debugImplementation(libs.compose.ui.tooling)
 }

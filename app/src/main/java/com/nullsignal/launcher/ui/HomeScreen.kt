@@ -103,20 +103,45 @@ fun HomeScreen(vm: LauncherViewModel) {
     val unread = vm.engine.unread(vm.progress)
     val rank = Ranks.of(vm.progress.followers)
 
-    val tiles = listOf(
-        Tile(Module.INTERCEPT, "◉", "ПЕРЕХВАТ", if (com.nullsignal.launcher.sys.DnsMonitor.running) "АКТИВЕН · ${com.nullsignal.launcher.sys.DnsMonitor.total}" else "кто куда стучится", Ns.Red),
-        Tile(Module.STALKER, "⊘", "АНТИСЛЕЖКА", "трекеры · шпионы", Ns.Red),
-        Tile(Module.TERMINAL, ">_", "ТЕРМИНАЛ", "40+ команд", Ns.Green),
-        Tile(Module.EXIF, "⌗", "EXIF", "где сделано фото", Ns.Green),
-        Tile(Module.MESSAGES, "✉", "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
-        Tile(Module.NETSCAN, "⌖", "СКАН СЕТИ", "устройства и порты", Ns.Green),
-        Tile(Module.MONITOR, "∿", "МОНИТОР", "скорость и пинг", Ns.Green),
-        Tile(Module.WIFI, "≋", "WIFI-РАДАР", "сети вокруг", Ns.Green),
-        Tile(Module.BLE, "◎", "BLE-РАДАР", "bluetooth рядом", Ns.Green),
-        Tile(Module.AUDIT, "⛨", "АУДИТ", "защита телефона", Ns.Green),
-        Tile(Module.TOOLS, "⚿", "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Green),
-        Tile(Module.GAMES, "#", "ТРЕНАЖЁРЫ", "взлом · шифры · код", Ns.Dim),
-        Tile(Module.ACADEMY, "λ", "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Dim),
+    val dns = com.nullsignal.launcher.sys.DnsMonitor
+    val sections = listOf(
+        "слежка и защита" to listOf(
+            Tile(Module.INTERCEPT, "◉", "ПЕРЕХВАТ", if (dns.running) "АКТИВЕН · ${dns.total} · блок ${dns.blocked}" else "кто куда стучится", Ns.Red),
+            Tile(Module.STALKER, "⊘", "АНТИСЛЕЖКА", "метки · шпионы", Ns.Red),
+            Tile(Module.XRAY, "☢", "РЕНТГЕН", "трекеры внутри приложений", Ns.Red),
+            Tile(Module.TRACES, "∷", "СЛЕДЫ", "кто трогал телефон", Ns.Green),
+            Tile(Module.NOTIFLOG, "⚑", "УВЕДОМЛЕНИЯ", "в т.ч. удалённые", Ns.Green),
+            Tile(Module.CAMS, "◍", "КАМЕРЫ", "скрытые камеры в сети", Ns.Green),
+            Tile(Module.AUDIT, "⛨", "АУДИТ", "защита телефона", Ns.Green),
+        ),
+        "сеть" to listOf(
+            Tile(Module.NETSCAN, "⌖", "СКАН СЕТИ", "кто в моём Wi-Fi", Ns.Green),
+            Tile(Module.MONITOR, "∿", "МОНИТОР", "трафик и пинг", Ns.Green),
+            Tile(Module.SPEED, "»", "СПИДТЕСТ", "скорость интернета", Ns.Green),
+            Tile(Module.TERMINAL, ">_", "ТЕРМИНАЛ", "80+ команд", Ns.Green),
+            Tile(Module.SSH, "$", "SSH", "удалённый доступ", Ns.Green),
+        ),
+        "разведка" to listOf(
+            Tile(Module.OSINT, "⌕", "OSINT", "ник · почта · IP · домен", Ns.Red),
+            Tile(Module.EXIF, "⌗", "EXIF", "где сделано фото", Ns.Green),
+        ),
+        "эфир и железо" to listOf(
+            Tile(Module.WIFI, "≋", "WIFI-РАДАР", "сети и каналы", Ns.Green),
+            Tile(Module.BLE, "◎", "BLE-РАДАР", "bluetooth рядом", Ns.Green),
+            Tile(Module.NFC, "⊡", "NFC", "метки и карты", Ns.Green),
+            Tile(Module.IR, "⇶", "ИК-ПУЛЬТ", "управление ТВ", Ns.Green),
+            Tile(Module.SENSORS, "✱", "ДАТЧИКИ", "магнитометр и всё железо", Ns.Green),
+        ),
+        "крипто и шпионаж" to listOf(
+            Tile(Module.SPY, "⧉", "ШПИОНАЖ", "стего · чернила · морзе", Ns.Green),
+            Tile(Module.AUTH, "◷", "2FA", "одноразовые коды", Ns.Green),
+            Tile(Module.TOOLS, "⚿", "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Green),
+        ),
+        "группа" to listOf(
+            Tile(Module.MESSAGES, "✉", "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
+            Tile(Module.GAMES, "#", "ТРЕНАЖЁРЫ", "взлом · шифры · код", Ns.Dim),
+            Tile(Module.ACADEMY, "λ", "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Dim),
+        ),
     )
     Box(Modifier.fillMaxSize()) {
         if (vm.matrix) MatrixRain(Modifier.fillMaxSize(), alpha = 0.10f)
@@ -126,7 +151,7 @@ fun HomeScreen(vm: LauncherViewModel) {
         ) {
             // ---------- часы ----------
             item {
-                WatchingEye(Modifier.fillMaxWidth().height(150.dp).padding(top = 6.dp))
+                Spacer(Modifier.height(10.dp))
                 Text(
                     WHISPERS[((now.time / 7000) % WHISPERS.size).toInt()],
                     style = Ns.label.copy(color = Ns.Red.copy(alpha = glowAlpha()), textAlign = TextAlign.Center),
@@ -218,12 +243,14 @@ fun HomeScreen(vm: LauncherViewModel) {
                     Text(vm.engine.current(vm.progress).objective, style = Ns.text.copy(color = Ns.Green), modifier = Modifier.padding(top = 4.dp))
                 }
             }
-            // ---------- модули ----------
-            item { SectionTitle("модули") }
-            items(tiles.chunked(2)) { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { t -> ModuleTile(t, Modifier.weight(1f)) { vm.screen = t.module } }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
+            // ---------- модули по разделам ----------
+            sections.forEach { (title, tiles) ->
+                item(key = "section-$title") { SectionTitle(title) }
+                items(tiles.chunked(2), key = { row -> "tiles-" + row.first().module.id }) { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { t -> ModuleTile(t, Modifier.weight(1f)) { vm.screen = t.module } }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
                 }
             }
             // ---------- приложения ----------

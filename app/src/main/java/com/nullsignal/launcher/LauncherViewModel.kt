@@ -31,6 +31,7 @@ import com.nullsignal.launcher.sys.MdnsWatcher
 import com.nullsignal.launcher.sys.NetInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -67,8 +68,16 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     var screen by mutableStateOf(Module.HOME)
+    /** Аргумент для модуля, открытого из терминала (ssh user@host, osint ник). Модуль забирает его сам. */
+    var moduleArg by mutableStateOf<String?>(null)
     var notice by mutableStateOf<String?>(null)
         private set
+
+    /** Короткое уведомление сверху экрана. */
+    fun toast(text: String) {
+        notice = text
+        viewModelScope.launch { delay(3500); if (notice == text) notice = null }
+    }
     var bootDone by mutableStateOf(false)
 
     // ---------- сюжет ----------
@@ -218,6 +227,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
             }
+            is Action.OpenWith -> { moduleArg = a.arg.ifBlank { null }; screen = a.module }
             Action.ToggleMatrix -> toggleMatrix()
             Action.Clear, null -> Unit
         }
@@ -243,6 +253,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         private set
     private var mdnsWatcher: MdnsWatcher? = null
 
+    var newDevices by mutableStateOf(0)
+        private set
+
     fun startScan() {
         if (scanning) return
         val net = NetInfo.local(ctx)
@@ -254,28 +267,159 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         scanHosts.clear(); mdns.clear()
         scanning = true
         scanProgress = 0f
+        newDevices = 0
         scanState = "сканирую ${net.ip}/${maxOf(net.prefix, 24)} …"
         startMdns()
+        val knownKey = "known_" + (net.gateway ?: net.ip.substringBeforeLast('.'))
+        val known = prefs.getStringSet(knownKey, null)
         viewModelScope.launch {
             val t = System.currentTimeMillis()
             try {
+                // UPnP-опрос идёт параллельно со сканом портов
+                val upnp = async(Dispatchers.IO) { runCatching { com.nullsignal.launcher.sys.Discover.upnpByIp(ctx) }.getOrDefault(emptyMap()) }
                 LanScanner.scan(
                     net,
-                    onProgress = { d, total -> scanProgress = d.toFloat() / total },
-                    onHost = { h ->
+                    onProgress = { d, total -> scanProgress = d.toFloat() / total * 0.85f },
+                    onHost = { h0 ->
+                        val h = h0.copy(isNew = known != null && h0.ip !in known)
                         // Вставляем по порядку адресов
                         val key = { x: Host -> x.ip.substringAfterLast('.').toInt() }
                         val idx = scanHosts.indexOfFirst { key(it) > key(h) }
                         if (idx < 0) scanHosts.add(h) else scanHosts.add(idx, h)
                     },
                 )
-                scanState = "готово: ${scanHosts.size} устройств за ${(System.currentTimeMillis() - t) / 1000} с"
+                scanState = "опознаю устройства…"
+                val upnpMap = upnp.await()
+                val gate = kotlinx.coroutines.sync.Semaphore(12)
+                scanHosts.toList().map { h ->
+                    async {
+                        gate.acquire()
+                        try {
+                            val rich = com.nullsignal.launcher.sys.Discover.enrich(h, upnpMap)
+                            val i = scanHosts.indexOfFirst { it.ip == h.ip }
+                            if (i >= 0) scanHosts[i] = rich
+                        } finally {
+                            gate.release()
+                        }
+                    }
+                }.forEach { it.await() }
+                newDevices = scanHosts.count { it.isNew }
+                prefs.edit().putStringSet(knownKey, (known.orEmpty() + scanHosts.map { it.ip }).toSet()).apply()
+                scanState = "готово: ${scanHosts.size} устройств за ${(System.currentTimeMillis() - t) / 1000} с" +
+                    if (known == null) " · сеть запомнена, новые устройства будут подсвечены" else ""
                 fire(Trigger.SCAN_DONE)
             } catch (e: Exception) {
                 scanState = "ошибка: ${e.message}"
             } finally {
                 scanning = false
                 scanProgress = 1f
+            }
+        }
+    }
+
+    fun forgetNetwork() {
+        prefs.edit().apply { prefs.all.keys.filter { it.startsWith("known_") }.forEach { remove(it) } }.apply()
+        for (i in scanHosts.indices) scanHosts[i] = scanHosts[i].copy(isNew = false)
+        newDevices = 0
+    }
+
+    // ---------- роутер (UPnP) ----------
+
+    var router by mutableStateOf<com.nullsignal.launcher.sys.Discover.RouterReport?>(null)
+        private set
+    var routerBusy by mutableStateOf(false)
+        private set
+    var routerExposure by mutableStateOf<String?>(null)
+        private set
+
+    fun auditRouter() {
+        if (routerBusy) return
+        routerBusy = true
+        routerExposure = null
+        viewModelScope.launch {
+            try {
+                val r = com.nullsignal.launcher.sys.Discover.routerAudit(ctx)
+                router = r
+                // Что интернет видит на внешнем адресе (только если адрес белый)
+                val ext = r.externalIp
+                if (ext != null && !com.nullsignal.launcher.sys.Discover.isCarrierNat(ext)) {
+                    routerExposure = withContext(Dispatchers.IO) {
+                        com.nullsignal.launcher.sys.Discover.http("https://internetdb.shodan.io/$ext", 6000)?.body
+                            ?.let { com.nullsignal.core.osint.IpIntel.parseInternetDb(it) }
+                            ?.let { e ->
+                                if (e.ports.isEmpty()) "интернет-сканеры не видят открытых портов на $ext ✓"
+                                else "интернет-сканеры видят на $ext порты: ${e.ports.joinToString()}" +
+                                    if (e.vulns.isNotEmpty()) " · уязвимости: ${e.vulns.take(5).joinToString()}" else ""
+                            } ?: "интернет-сканеры ничего не знают о $ext ✓"
+                    }
+                }
+            } finally {
+                routerBusy = false
+            }
+        }
+    }
+
+    // ---------- Wake-on-LAN ----------
+
+    data class WolTarget(val name: String, val mac: String)
+
+    var wolTargets by mutableStateOf(
+        prefs.getStringSet("wol", emptySet())!!.mapNotNull { s ->
+            s.split('|').takeIf { it.size == 2 }?.let { WolTarget(it[0], it[1]) }
+        }.sortedBy { it.name },
+    )
+        private set
+
+    fun addWol(name: String, mac: String): Boolean {
+        val bytes = com.nullsignal.core.net.WakeOnLan.parseMac(mac) ?: return false
+        val t = WolTarget(name.ifBlank { "компьютер" }.replace("|", "/"), com.nullsignal.core.net.WakeOnLan.formatMac(bytes))
+        wolTargets = (wolTargets.filter { it.mac != t.mac } + t).sortedBy { it.name }
+        prefs.edit().putStringSet("wol", wolTargets.map { "${it.name}|${it.mac}" }.toSet()).apply()
+        return true
+    }
+
+    fun removeWol(t: WolTarget) {
+        wolTargets = wolTargets - t
+        prefs.edit().putStringSet("wol", wolTargets.map { "${it.name}|${it.mac}" }.toSet()).apply()
+    }
+
+    fun wake(t: WolTarget): String {
+        val mac = com.nullsignal.core.net.WakeOnLan.parseMac(t.mac) ?: return "неверный MAC"
+        val n = runCatching { com.nullsignal.launcher.sys.Discover.wake(mac, NetInfo.local(ctx)) }.getOrDefault(0)
+        return if (n > 0) "волшебный пакет отправлен ($n шт.) → ${t.name}" else "не удалось отправить — проверь Wi-Fi"
+    }
+
+    // ---------- камеры ----------
+
+    val cameras = mutableStateListOf<com.nullsignal.launcher.sys.Discover.CameraHit>()
+    var camState by mutableStateOf("")
+        private set
+    var camProgress by mutableStateOf(0f)
+        private set
+    var camBusy by mutableStateOf(false)
+        private set
+
+    fun scanCameras() {
+        if (camBusy) return
+        val net = NetInfo.local(ctx)
+        if (net == null || !com.nullsignal.core.net.Subnet.isPrivate(net.ip)) {
+            camState = "подключись к Wi-Fi той сети, которую проверяешь"
+            return
+        }
+        camBusy = true
+        cameras.clear()
+        camProgress = 0f
+        camState = "прочёсываю ${net.ip.substringBeforeLast('.')}.0/24: RTSP, ONVIF, веб-интерфейсы…"
+        viewModelScope.launch {
+            try {
+                val hits = com.nullsignal.launcher.sys.Discover.cameraSweep(ctx, net) { camProgress = it }
+                cameras.addAll(hits)
+                camState = if (hits.isEmpty()) "камер в сети не найдено ✓" else "найдено подозрительных устройств: ${hits.size}"
+            } catch (e: Exception) {
+                camState = "ошибка: ${e.message}"
+            } finally {
+                camBusy = false
+                camProgress = 1f
             }
         }
     }

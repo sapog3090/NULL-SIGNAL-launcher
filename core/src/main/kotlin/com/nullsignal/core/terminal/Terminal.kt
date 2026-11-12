@@ -6,7 +6,12 @@ import com.nullsignal.core.security.Crypto
 import com.nullsignal.core.security.PasswordStrength
 import com.nullsignal.core.security.UrlInspector
 import com.nullsignal.core.security.WebAudit
+import com.nullsignal.core.spy.Base32
+import com.nullsignal.core.spy.Morse
+import com.nullsignal.core.spy.Totp
 import com.nullsignal.core.story.Trigger
+import com.nullsignal.core.util.Calc
+import com.nullsignal.core.util.DevTools
 
 /** Экраны лаунчера, которые можно открыть из терминала. */
 enum class Module(val id: String, val title: String) {
@@ -25,6 +30,18 @@ enum class Module(val id: String, val title: String) {
     INTERCEPT("dns", "ПЕРЕХВАТ"),
     STALKER("stalk", "АНТИСЛЕЖКА"),
     EXIF("exif", "EXIF"),
+    XRAY("xray", "РЕНТГЕН"),
+    TRACES("traces", "СЛЕДЫ"),
+    NOTIFLOG("notif", "УВЕДОМЛЕНИЯ"),
+    OSINT("osint", "OSINT"),
+    SPY("spy", "ШПИОНАЖ"),
+    AUTH("2fa", "2FA"),
+    SPEED("speed", "СПИДТЕСТ"),
+    SENSORS("sensors", "ДАТЧИКИ"),
+    NFC("nfc", "NFC"),
+    IR("ir", "ИК-ПУЛЬТ"),
+    SSH("ssh", "SSH"),
+    CAMS("cams", "КАМЕРЫ"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -43,6 +60,8 @@ sealed interface Action {
     data class LaunchApp(val label: String) : Action
     data object Clear : Action
     data object ToggleMatrix : Action
+    /** Открыть модуль и передать ему аргумент (например, ssh user@host или osint <ник>). */
+    data class OpenWith(val module: Module, val arg: String) : Action
     /** Реальная команда, которую выполняет Android-часть (сеть, шелл). Вывод идёт потоком. */
     data class Exec(val command: String, val args: List<String>, val rawArgs: String) : Action
 }
@@ -151,6 +170,38 @@ class Terminal(private val env: TerminalEnv) {
                     else -> Output(listOf("portscan работает только с адресами твоей локальной сети (192.168.x.x, 10.x.x.x, 172.16–31.x.x)"))
                 }
             }
+            "xray" -> Output(listOf("просвечиваю приложения…"), Action.Open(Module.XRAY))
+            "traces" -> Output(listOf("поднимаю журнал активности…"), Action.Open(Module.TRACES))
+            "notif" -> Output(listOf("открываю журнал уведомлений…"), Action.Open(Module.NOTIFLOG))
+            "spy" -> Output(listOf("открываю шпионский набор…"), Action.Open(Module.SPY))
+            "2fa", "otp" -> Output(listOf("открываю аутентификатор…"), Action.Open(Module.AUTH))
+            "speedtest", "speed" -> Output(listOf("запускаю спидтест…"), Action.Open(Module.SPEED))
+            "sensors" -> Output(listOf("подключаю датчики…"), Action.Open(Module.SENSORS))
+            "nfc" -> Output(listOf("жду NFC-метку…"), Action.Open(Module.NFC))
+            "ir", "remote" -> Output(listOf("включаю ИК-пульт…"), Action.Open(Module.IR))
+            "cams", "cameras" -> Output(listOf("ищу камеры в сети…"), Action.Open(Module.CAMS))
+            "ssh" -> Output(listOf("открываю SSH…"), Action.OpenWith(Module.SSH, arg))
+            "osint" -> Output(listOf("открываю OSINT…"), Action.OpenWith(Module.OSINT, arg))
+            "calc", "=" -> calc(arg)
+            "base" -> base(arg)
+            "unix" -> Output(listOf(arg.toLongOrNull()?.let { DevTools.unixToDate(it) } ?: "сейчас: ${System.currentTimeMillis() / 1000}"))
+            "uuid" -> Output(listOf(java.util.UUID.randomUUID().toString()))
+            "urlenc" -> Output(listOf(DevTools.urlEncode(arg)))
+            "urldec" -> Output(listOf(runCatching { DevTools.urlDecode(arg) }.getOrDefault("urldec: неверная строка")))
+            "json" -> Output(runCatching { DevTools.jsonPretty(arg).lines() }.getOrElse { listOf("json: ${it.message}") })
+            "subnet", "cidr" -> Output(runCatching { DevTools.subnet(arg) }.getOrElse { listOf("использование: subnet 192.168.1.10/24") })
+            "rand" -> rand(arg)
+            "coin" -> Output(listOf(if (java.security.SecureRandom().nextBoolean()) "орёл" else "решка"))
+            "dice" -> Output(listOf("🎲 ${java.security.SecureRandom().nextInt(6) + 1}"))
+            "morse" -> Output(listOf(Morse.encode(arg).ifEmpty { "использование: morse <текст>" }))
+            "unmorse" -> {
+                val ru = arg.endsWith(" ru")
+                Output(listOf(Morse.decode(arg.removeSuffix(" ru"), cyrillic = ru)))
+            }
+            "totp" -> Output(
+                runCatching { listOf("${Totp.code(Base32.decode(arg), System.currentTimeMillis() / 1000)}  (ещё ${Totp.secondsLeft(System.currentTimeMillis() / 1000)} с)") }
+                    .getOrElse { listOf("использование: totp <секрет base32>") },
+            )
             "learn", "academy" -> Output(listOf("открываю курс Килобайта…"), Action.Open(Module.ACADEMY))
             "wifi" -> Output(listOf("включаю WIFI-радар…"), Action.Open(Module.WIFI))
             "ble", "bt" -> Output(listOf("включаю BLE-радар…"), Action.Open(Module.BLE))
@@ -225,6 +276,34 @@ class Terminal(private val env: TerminalEnv) {
         )
     }
 
+    private fun calc(expr: String): Output {
+        if (expr.isBlank()) return Output(listOf("использование: calc 2^10 + sqrt(16)*pi"))
+        return Output(listOf(runCatching { "= " + Calc.format(Calc.eval(expr)) }.getOrElse { "calc: ${it.message}" }))
+    }
+
+    private fun base(arg: String): Output {
+        val p = arg.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        return runCatching {
+            when (p.size) {
+                1 -> Output(DevTools.allBases(p[0]))
+                3 -> Output(listOf(DevTools.convertBase(p[2], p[0].toInt(), p[1].toInt())))
+                else -> Output(listOf("использование: base <число> | base <из> <в> <число>  (напр. base 16 2 ff)"))
+            }
+        }.getOrElse { Output(listOf("base: ${it.message}")) }
+    }
+
+    private fun rand(arg: String): Output {
+        val p = arg.split(Regex("\\s+")).mapNotNull { it.toLongOrNull() }
+        val r = java.security.SecureRandom()
+        val (a, b) = when (p.size) {
+            0 -> 1L to 100L
+            1 -> 1L to p[0]
+            else -> minOf(p[0], p[1]) to maxOf(p[0], p[1])
+        }
+        if (b < a) return Output(listOf("rand: пустой диапазон"))
+        return Output(listOf((a + (r.nextDouble() * (b - a + 1)).toLong().coerceAtMost(b - a)).toString()))
+    }
+
     private fun openModule(name: String): Output {
         val m = Module.entries.firstOrNull { it.id.equals(name, true) || it.title.equals(name, true) }
             ?: return Output(listOf("модули: " + Module.entries.joinToString(" ") { it.id }))
@@ -274,8 +353,30 @@ class Terminal(private val env: TerminalEnv) {
             "  caesar <n> <т> | caesar brute <т>   rot13  atbash  rev",
             "  hex / bin <enc|dec> <текст>   jwt <токен>",
             "  urlcheck <ссылка> проверка на фишинг",
+            "  morse <текст> / unmorse <код> [ru]   totp <секрет>",
             "",
-            "модули: dns stalk exif audit tools mon games learn  ·  matrix",
+            "разведка (OSINT, открытые данные):",
+            "  ipinfo <ip|домен> где сервер, чей он, что открыто (Shodan)",
+            "  subdomains <домен> поддомены из журналов сертификатов",
+            "  tech <сайт>       на чём сделан сайт",
+            "  mailsec <домен>   можно ли подделать письмо от домена",
+            "  wayback <сайт>    сайт в веб-архиве",
+            "  user <ник>        где зарегистрирован ник (30 сайтов)",
+            "  leak <почта>      была ли почта в утечках",
+            "",
+            "своя сеть:",
+            "  upnp              порты, которые устройства открыли в роутере",
+            "  wol <mac>         включить компьютер по сети",
+            "  ssh [user@host]   SSH-клиент",
+            "",
+            "утилиты:",
+            "  calc <выражение>  base <число>  subnet <ip/маска>",
+            "  unix [секунды]  uuid  urlenc / urldec  json <текст>",
+            "  rand [a b]  coin  dice",
+            "",
+            "модули: dns stalk xray traces notif osint spy 2fa cams",
+            "        speed sensors nfc ir ssh exif audit tools mon",
+            "        games learn  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */
@@ -294,6 +395,15 @@ class Terminal(private val env: TerminalEnv) {
             "whois" to "whois <домен>",
             "myip" to "",
             "wifiinfo" to "",
+            "ipinfo" to "ipinfo <ip или домен>",
+            "subdomains" to "subdomains <домен>",
+            "tech" to "tech <сайт>",
+            "mailsec" to "mailsec <домен>",
+            "wayback" to "wayback <сайт>",
+            "user" to "user <ник>",
+            "leak" to "leak <почта>",
+            "upnp" to "",
+            "wol" to "wol <MAC-адрес>",
         )
     }
 }

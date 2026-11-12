@@ -17,7 +17,24 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicInteger
 
-data class Host(val ip: String, val name: String?, val ports: List<Int>, val gateway: Boolean)
+data class Host(
+    val ip: String,
+    /** Обратный DNS. */
+    val name: String?,
+    val ports: List<Int>,
+    val gateway: Boolean,
+    val netbios: String? = null,
+    val mac: String? = null,
+    val upnp: String? = null,
+    val upnpType: String? = null,
+    val web: String? = null,
+    val server: String? = null,
+    val kind: com.nullsignal.core.net.DeviceKind.Kind = com.nullsignal.core.net.DeviceKind.Kind.UNKNOWN,
+    val isNew: Boolean = false,
+) {
+    /** Самое понятное имя устройства. */
+    val label: String get() = upnp ?: netbios ?: web ?: name ?: ip
+}
 
 /**
  * Сканер СВОЕЙ локальной сети: только частные адреса (192.168.x.x, 10.x.x.x, 172.16–31.x.x)

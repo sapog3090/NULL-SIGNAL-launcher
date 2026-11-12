@@ -300,6 +300,73 @@ fun signalBars(dbm: Int): String {
     return "▂▃▅▇".mapIndexed { i, c -> if (i < level) c else '·' }.joinToString("")
 }
 
+/** Вкладки модуля в общем стиле. */
+@Composable
+fun NsTabs(titles: List<String>, selected: Int, accent: Color = Ns.Green, onSelect: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
+        titles.forEachIndexed { i, t ->
+            Text(
+                t,
+                style = Ns.small.copy(color = if (i == selected) Ns.Bg else Ns.Green, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                maxLines = 1,
+                modifier = Modifier.weight(1f).background(if (i == selected) accent else Ns.Panel).clickable { onSelect(i) }.padding(vertical = 9.dp),
+            )
+        }
+    }
+}
+
+/** Поле ввода в общем стиле. */
+@Composable
+fun NsField(
+    value: String,
+    onChange: (String) -> Unit,
+    hint: String,
+    modifier: Modifier = Modifier,
+    singleLine: Boolean = true,
+    secret: Boolean = false,
+    keyboard: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+    onDone: (() -> Unit)? = null,
+) {
+    androidx.compose.foundation.text.BasicTextField(
+        value = value,
+        onValueChange = onChange,
+        singleLine = singleLine,
+        textStyle = Ns.text,
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(Ns.Green),
+        visualTransformation = if (secret) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            autoCorrectEnabled = false,
+            keyboardType = if (secret) androidx.compose.ui.text.input.KeyboardType.Password else keyboard,
+            imeAction = if (onDone != null) androidx.compose.ui.text.input.ImeAction.Done else androidx.compose.ui.text.input.ImeAction.Default,
+        ),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { onDone?.invoke() }),
+        modifier = modifier.fillMaxWidth().hud(Ns.Dim, shape = Ns.HudSmall).padding(10.dp),
+        decorationBox = { inner ->
+            if (value.isEmpty()) Text(hint, style = Ns.text.copy(color = Ns.Faint))
+            inner()
+        },
+    )
+}
+
+/** Строка «ключ — значение» для карточек. */
+@Composable
+fun KeyValue(key: String, value: String, valueColor: Color = Ns.Green) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
+        Text(key, style = Ns.small.copy(color = Ns.Dim), modifier = Modifier.width(110.dp))
+        Text(value, style = Ns.small.copy(color = valueColor))
+    }
+}
+
+/** Открыть ссылку во внешнем браузере. */
+fun android.content.Context.openUrl(url: String) {
+    runCatching {
+        startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+
 /** Лёгкое «дыхание» для акцентов. */
 @Composable
 fun glowAlpha(): Float {

@@ -83,6 +83,10 @@ class MainActivity : ComponentActivity() {
                         Module.INTERCEPT -> InterceptScreen(home)
                         Module.STALKER -> StalkerScreen(home)
                         Module.EXIF -> ExifScreen(home)
+                        Module.CAMS -> com.nullsignal.launcher.ui.CamsScreen(vm, home)
+                        else -> com.nullsignal.launcher.ui.ModuleScreen(screen.title, home) {
+                            androidx.compose.material3.Text("модуль собирается…", style = Ns.text)
+                        }
                     }
                     }
                     AnimatedVisibility(

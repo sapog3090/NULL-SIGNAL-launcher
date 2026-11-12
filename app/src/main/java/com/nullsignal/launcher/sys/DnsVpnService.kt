@@ -26,11 +26,24 @@ import java.net.InetSocketAddress
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Одна строчка ленты перехвата. */
-data class DnsEvent(val time: Long, val uid: Int, val app: String, val domain: String, val type: String, val blocked: Boolean, val tracker: String?)
+/**
+ * Одна строчка ленты перехвата.
+ * [tracker] — чей это трекер (если известен), [reason] — почему заблокировано.
+ */
+data class DnsEvent(
+    val time: Long,
+    val uid: Int,
+    val app: String,
+    val domain: String,
+    val type: String,
+    val blocked: Boolean,
+    val tracker: String?,
+    val reason: String? = null,
+    val ms: Long = 0,
+)
 
 /** Сводка по приложению. */
-data class AppDns(val uid: Int, val app: String, val queries: Int, val trackers: Int, val domains: Set<String>)
+data class AppDns(val uid: Int, val app: String, val queries: Int, val trackers: Int, val domains: Set<String>, val blocked: Int = 0)
 
 /** Состояние перехватчика для интерфейса (обновляется в главном потоке). */
 object DnsMonitor {
@@ -39,7 +52,13 @@ object DnsMonitor {
     var blocked by mutableIntStateOf(0)
     val feed = mutableStateListOf<DnsEvent>()
     val apps = mutableStateMapOf<Int, AppDns>()
+    /** Сколько раз запрашивали каждый домен. */
+    val topDomains = mutableStateMapOf<String, Int>()
+    /** Сколько раз срабатывал каждый трекер. */
+    val topTrackers = mutableStateMapOf<String, Int>()
     var error by mutableStateOf<String?>(null)
+    /** Полный журнал для экспорта (до 5000 строк). */
+    val log = ArrayDeque<DnsEvent>()
 
     private val main = Handler(Looper.getMainLooper())
 
@@ -48,15 +67,34 @@ object DnsMonitor {
         if (e.blocked) blocked++
         feed.add(0, e)
         if (feed.size > 400) feed.removeAt(feed.lastIndex)
+        log.addLast(e)
+        if (log.size > 5000) log.removeFirst()
         val a = apps[e.uid] ?: AppDns(e.uid, e.app, 0, 0, emptySet())
         apps[e.uid] = a.copy(
             queries = a.queries + 1,
             trackers = a.trackers + if (e.tracker != null) 1 else 0,
-            domains = if (a.domains.size < 300) a.domains + e.domain else a.domains,
+            blocked = a.blocked + if (e.blocked) 1 else 0,
+            domains = if (a.domains.size < 400) a.domains + e.domain else a.domains,
         )
+        if (topDomains.size < 3000 || e.domain in topDomains) topDomains[e.domain] = (topDomains[e.domain] ?: 0) + 1
+        e.tracker?.let { topTrackers[it] = (topTrackers[it] ?: 0) + 1 }
     }
 
-    fun clear() = main.post { feed.clear(); apps.clear(); total = 0; blocked = 0 }
+    fun clear() = main.post {
+        feed.clear(); apps.clear(); topDomains.clear(); topTrackers.clear(); log.clear(); total = 0; blocked = 0
+    }
+
+    /** Журнал в CSV для экспорта. */
+    fun csv(): String {
+        val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+        fun q(s: String?) = "\"" + (s ?: "").replace("\"", "\"\"") + "\""
+        return buildString {
+            appendLine("time,app,uid,domain,type,blocked,tracker,reason,ms")
+            log.forEach { e ->
+                appendLine(listOf(q(fmt.format(java.util.Date(e.time))), q(e.app), e.uid, q(e.domain), e.type, e.blocked, q(e.tracker), q(e.reason), e.ms).joinToString(","))
+            }
+        }
+    }
 
     // ---- настройки (читаются сервисом при каждом запросе) ----
     private const val PREFS = "dns"
@@ -100,6 +138,8 @@ class DnsVpnService : VpnService() {
                 .setBlocking(true)
             runCatching { b.addDisallowedApplication(packageName) }
             tun = b.establish() ?: throw IllegalStateException("нет разрешения на VPN")
+            // Блок-листы могут быть большими — грузим их в фоне, перехват начинается сразу
+            Thread({ runCatching { DnsRules.rebuildBlocking(this) } }, "dns-rules").start()
             running.set(true)
             DnsMonitor.running = true
             DnsMonitor.error = null
@@ -127,15 +167,29 @@ class DnsVpnService : VpnService() {
     }
 
     private fun handle(q: DnsPacket.Query, output: FileOutputStream) {
+        val started = System.currentTimeMillis()
         val uid = ownerUid(q)
         val app = appName(uid)
         val tracker = Trackers.match(q.name)
+        val allowed = DnsRules.allow.match(q.name) != null
         val cutOff = uid in DnsMonitor.blockedUids(this)
-        val block = cutOff || (tracker != null && DnsMonitor.blockTrackers(this))
+        val custom = if (allowed) null else DnsRules.custom.match(q.name)
+        val listed = if (allowed) null else DnsRules.lists.match(q.name)
+        val reason = when {
+            allowed -> null
+            cutOff -> "приложение отрезано от сети"
+            custom != null -> "моё правило: $custom"
+            tracker != null && DnsMonitor.blockTrackers(this) -> "трекер"
+            listed != null -> "блок-лист: $listed"
+            else -> null
+        }
+        val block = reason != null
         val response = if (block) DnsPacket.nxdomain(q.dns) else forward(q.dns)
         DnsMonitor.post(
-            DnsEvent(System.currentTimeMillis(), uid, app, q.name, DnsPacket.QTYPES[q.qtype] ?: q.qtype.toString(), block,
-                tracker ?: if (cutOff) "отрезано от сети" else null),
+            DnsEvent(
+                System.currentTimeMillis(), uid, app, q.name, DnsPacket.QTYPES[q.qtype] ?: q.qtype.toString(), block,
+                tracker ?: if (listed != null) "блок-лист" else null, reason, System.currentTimeMillis() - started,
+            ),
         )
         if (response != null) {
             val pkt = DnsPacket.wrapResponse(q, response)
@@ -143,16 +197,40 @@ class DnsVpnService : VpnService() {
         }
     }
 
-    /** Настоящий запрос к DNS через защищённый (мимо туннеля) сокет. */
-    private fun forward(query: ByteArray): ByteArray? = runCatching {
+    /** Ответ от настоящего DNS: через DNS-over-HTTPS (зашифровано) или обычным UDP. */
+    private fun forward(query: ByteArray): ByteArray? {
+        val up = DnsRules.upstream(this)
+        if (up.doh != null && DnsRules.useDoh(this)) doh(up.doh!!, query)?.let { return it }
+        return udp(up.ip, query)
+    }
+
+    /** UDP-запрос через защищённый (мимо туннеля) сокет. */
+    private fun udp(server: String, query: ByteArray): ByteArray? = runCatching {
         DatagramSocket().use { s ->
             protect(s)
             s.soTimeout = 4000
-            s.send(DatagramPacket(query, query.size, InetAddress.getByName(UPSTREAM), 53))
+            s.send(DatagramPacket(query, query.size, InetAddress.getByName(server), 53))
             val resp = ByteArray(4096)
             val p = DatagramPacket(resp, resp.size)
             s.receive(p)
             resp.copyOf(p.length)
+        }
+    }.getOrNull()
+
+    /** RFC 8484: POST application/dns-message. Наше приложение исключено из туннеля, так что петли нет. */
+    private fun doh(url: String, query: ByteArray): ByteArray? = runCatching {
+        val c = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 4000
+        c.readTimeout = 4000
+        c.requestMethod = "POST"
+        c.doOutput = true
+        c.setRequestProperty("Content-Type", "application/dns-message")
+        c.setRequestProperty("Accept", "application/dns-message")
+        try {
+            c.outputStream.use { it.write(query) }
+            if (c.responseCode != 200) null else c.inputStream.use { it.readBytes() }
+        } finally {
+            c.disconnect()
         }
     }.getOrNull()
 
@@ -210,7 +288,6 @@ class DnsVpnService : VpnService() {
         const val ACTION_STOP = "stop"
         const val TUN_IP = "10.111.222.2"
         const val DNS_IP = "10.111.222.1"
-        const val UPSTREAM = "1.1.1.1"
 
         fun start(ctx: Context) = ctx.startService(Intent(ctx, DnsVpnService::class.java))
         fun stop(ctx: Context) = ctx.startService(Intent(ctx, DnsVpnService::class.java).setAction(ACTION_STOP))
