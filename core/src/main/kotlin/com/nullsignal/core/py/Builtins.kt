@@ -292,7 +292,11 @@ internal fun MiniPy.installBuiltins() {
         val prompt = a.getOrNull(0)?.let { pyStr(it) } ?: ""
         val provider = input ?: throw err("RuntimeError", "input() здесь не работает", "в песочнице нет ввода с клавиатуры: запиши значение прямо в переменную")
         if (prompt.isNotEmpty()) emit(prompt)
-        val v = provider(prompt) ?: throw err("EOFError", "ввод закончился")
+        val asked = System.nanoTime()
+        val v = provider(prompt)
+        deadline += System.nanoTime() - asked // пока человек печатает, время программы не идёт
+        if (cancelled) throw PyHalt("остановлено")
+        if (v == null) throw err("EOFError", "ввод закончился")
         emit(v + "\n")
         v
     }

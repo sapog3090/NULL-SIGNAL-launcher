@@ -180,6 +180,33 @@ object PyExamples {
             """,
         ),
         Example(
+            "Угадай число", "input() и цикл с попытками",
+            """
+            # input() ждёт, пока ты что-нибудь введёшь. Ввод — всегда строка,
+            # поэтому число из него делает int().
+            import random
+
+            secret = random.randint(1, 100)
+            print("Я загадал число от 1 до 100. У тебя 7 попыток.")
+
+            for attempt in range(1, 8):
+                answer = input(f"попытка {attempt}: ")
+                if not answer.isdigit():
+                    print("нужно число")
+                    continue
+                number = int(answer)
+                if number == secret:
+                    print("Угадал!")
+                    break
+                elif number < secret:
+                    print("моё число больше")
+                else:
+                    print("моё число меньше")
+            else:
+                print("Не вышло. Я загадал", secret)
+            """,
+        ),
+        Example(
             "Обратный отсчёт", "паузы и кнопка СТОП",
             """
             # time.sleep(секунды) — пауза. Кнопка СТОП прерывает программу.

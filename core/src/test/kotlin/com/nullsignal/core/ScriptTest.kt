@@ -109,6 +109,7 @@ class PyExamplesTest {
             val out = StringBuilder()
             val py = com.nullsignal.core.py.MiniPy { out.append(it) }
             py.realSleep = false
+            py.input = { "50" }
             val r = py.run(e.code)
             assertTrue(e.title + ": " + (r.problem?.text() ?: r.halted ?: ""), r.ok)
             assertTrue(e.title + ": пустой вывод", out.isNotBlank())
@@ -144,5 +145,26 @@ class TerminalPythonTest {
         assertTrue(t.execute("py while True: pass").lines.last().startsWith("остановлено"))
         assertEquals(com.nullsignal.core.terminal.Action.Open(com.nullsignal.core.terminal.Module.PYTHON), t.execute("py").action)
         assertEquals(com.nullsignal.core.terminal.Action.Open(com.nullsignal.core.terminal.Module.LANCHAT), t.execute("chat").action)
+    }
+}
+
+class PyInputTest {
+    @Test fun inputEchoAndEof() {
+        val out = StringBuilder()
+        val answers = ArrayDeque(listOf("Ворон", "7"))
+        val py = com.nullsignal.core.py.MiniPy { out.append(it) }
+        py.input = { answers.removeFirstOrNull() }
+        var r = py.run("name = input('позывной: ')\nn = int(input())\nprint(name.upper(), n * 6)")
+        assertTrue(r.problem?.text() ?: "", r.ok)
+        assertEquals("позывной: Ворон\n7\nВОРОН 42\n", out.toString())
+        r = py.run("input()")
+        assertEquals("EOFError", r.problem!!.type)
+        // без поставщика ввода — понятная ошибка, а не зависание
+        assertEquals("RuntimeError", com.nullsignal.core.py.MiniPy().run("input()").problem!!.type)
+        // долгий ввод не съедает время программы
+        val slow = com.nullsignal.core.py.MiniPy()
+        slow.maxMillis = 300
+        slow.input = { Thread.sleep(600); "ok" }
+        assertTrue(slow.run("x = input()\nfor i in range(1000):\n    pass").ok)
     }
 }

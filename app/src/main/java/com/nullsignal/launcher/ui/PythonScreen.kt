@@ -80,6 +80,7 @@ fun PythonScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         val py = MiniPy { run.append(it) }
         py.maxMillis = 60_000L
         py.maxSteps = 300_000_000L
+        py.input = { prompt -> run.ask(prompt) { py.cancelled } }
         run.start(scope, cancel = { py.cancel() }, block = { py.run(src) })
     }
 
@@ -103,6 +104,7 @@ fun PythonScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             }
             1 -> {
                 ScriptOutput(run, Modifier.weight(1f).fillMaxWidth())
+                ScriptInput(run)
                 Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     TermButton("← КОД", Modifier.weight(1f), color = Ns.Dim) { tab = 0 }
                     if (run.running) TermButton("■ СТОП", Modifier.weight(1f), color = Ns.Red) { run.stop() }

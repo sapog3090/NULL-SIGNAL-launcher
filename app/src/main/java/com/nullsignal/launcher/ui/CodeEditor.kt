@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.AnnotatedString
@@ -211,8 +212,24 @@ class ScriptRun {
         private set
     var stats by mutableStateOf("")
         private set
+    /** Подсказка input(), на которую программа сейчас ждёт ответ; null — не ждёт. */
+    var waiting by mutableStateOf<String?>(null)
+        private set
+    private val answers = java.util.concurrent.LinkedBlockingQueue<String>()
     private val buf = StringBuilder()
     private var cancel: (() -> Unit)? = null
+
+    /** Вызывается из потока программы: ждёт строку от человека или остановку программы. */
+    fun ask(prompt: String, cancelled: () -> Boolean): String? {
+        answers.clear()
+        waiting = prompt
+        var v: String? = null
+        while (v == null && !cancelled()) v = answers.poll(150, java.util.concurrent.TimeUnit.MILLISECONDS)
+        waiting = null
+        return v
+    }
+
+    fun answer(text: String) { answers.offer(text) }
 
     fun append(s: String) { synchronized(buf) { buf.append(s) } }
 
@@ -228,6 +245,8 @@ class ScriptRun {
         problem = null
         halted = null
         stats = ""
+        waiting = null
+        answers.clear()
         synchronized(buf) { buf.setLength(0) }
         this.cancel = cancel
         val pump = scope.launch { while (true) { flush(); delay(80) } }
@@ -246,6 +265,21 @@ class ScriptRun {
     fun stop() { cancel?.invoke() }
 
     fun clear() { if (!running) { text = ""; problem = null; halted = null; stats = "" } }
+}
+
+/** Поле для ответа на input(): видно, только пока программа ждёт ввод. */
+@Composable
+fun ScriptInput(run: ScriptRun) {
+    if (run.waiting == null) return
+    var text by remember { mutableStateOf("") }
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        NsField(text, { text = it }, "программа ждёт ввод…", Modifier.weight(1f), onDone = { run.answer(text); text = "" })
+        Text(
+            "  ⏎",
+            style = Ns.title.copy(color = Ns.Red),
+            modifier = Modifier.clickable { run.answer(text); text = "" }.padding(horizontal = 6.dp),
+        )
+    }
 }
 
 /** Ошибка программы: тип, объяснение и подсказка. */
