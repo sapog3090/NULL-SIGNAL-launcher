@@ -7,6 +7,7 @@ import android.provider.Settings
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -72,6 +73,8 @@ fun HomeScreen(vm: LauncherViewModel) {
     val apps = vm.apps.filter { query.isBlank() || it.label.contains(query.trim(), ignoreCase = true) }
     val unread = vm.engine.unread(vm.progress)
 
+    Box(Modifier.fillMaxSize()) {
+    if (vm.matrix) MatrixRain(Modifier.fillMaxSize(), alpha = 0.22f)
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         item {
             Spacer(Modifier.height(8.dp))
@@ -83,6 +86,11 @@ fun HomeScreen(vm: LauncherViewModel) {
                 SimpleDateFormat("EEEE, d MMMM", Locale("ru")).format(now) +
                     "  ·  бат ${if (battery >= 0) "$battery%" else "?"}  ·  ${ip ?: "offline"}",
                 style = Ns.small,
+            )
+            Text(
+                if (vm.matrix) "[матрица: вкл]" else "[матрица: выкл]",
+                style = Ns.small.copy(color = Ns.Faint),
+                modifier = Modifier.clickable { vm.toggleMatrix() }.padding(vertical = 2.dp),
             )
         }
         item {
@@ -105,9 +113,12 @@ fun HomeScreen(vm: LauncherViewModel) {
                 Module.TERMINAL to ">_ терминал",
                 Module.MESSAGES to (if (unread > 0) "✉ сообщения ($unread)" else "✉ сообщения"),
                 Module.NETSCAN to "⌖ скан сети",
+                Module.MONITOR to "∿ монитор",
                 Module.WIFI to "≋ wifi-радар",
                 Module.BLE to "◎ ble-радар",
-                Module.BREACH to "# взлом",
+                Module.AUDIT to "⛨ аудит",
+                Module.TOOLS to "⚿ инструменты",
+                Module.GAMES to "# игры",
                 Module.ACADEMY to "λ обучение ${vm.lessonsDone.size}/${com.nullsignal.core.academy.Academy.lessons.size}",
             )
             Column(Modifier.padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -165,4 +176,5 @@ fun HomeScreen(vm: LauncherViewModel) {
             )
         }
     }
+}
 }

@@ -20,6 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.nullsignal.core.terminal.Module
 import com.nullsignal.launcher.ui.AcademyScreen
+import com.nullsignal.launcher.ui.AuditScreen
+import com.nullsignal.launcher.ui.GamesScreen
+import com.nullsignal.launcher.ui.MonitorScreen
+import com.nullsignal.launcher.ui.ToolsScreen
 import com.nullsignal.launcher.ui.BleScreen
 import com.nullsignal.launcher.ui.BreachScreen
 import com.nullsignal.launcher.ui.HomeScreen
@@ -47,10 +51,14 @@ class MainActivity : ComponentActivity() {
                         Module.TERMINAL -> TerminalScreen(vm, home)
                         Module.NETSCAN -> NetScanScreen(vm, home)
                         Module.MESSAGES -> MessagesScreen(vm, home)
-                        Module.BREACH -> BreachScreen(vm, home)
+                        Module.BREACH -> BreachScreen(vm) { vm.screen = Module.GAMES }
                         Module.WIFI -> WifiScreen(home)
                         Module.BLE -> BleScreen(home)
                         Module.ACADEMY -> AcademyScreen(vm, home)
+                        Module.AUDIT -> AuditScreen(vm, home)
+                        Module.TOOLS -> ToolsScreen(home)
+                        Module.MONITOR -> MonitorScreen(home)
+                        Module.GAMES -> GamesScreen(vm, home)
                     }
                     AnimatedVisibility(vm.notice != null, modifier = Modifier.align(Alignment.TopCenter)) {
                         Text(

@@ -1,5 +1,11 @@
 package com.nullsignal.core.terminal
 
+import com.nullsignal.core.games.Ciphers
+import com.nullsignal.core.net.Subnet
+import com.nullsignal.core.security.Crypto
+import com.nullsignal.core.security.PasswordStrength
+import com.nullsignal.core.security.UrlInspector
+import com.nullsignal.core.security.WebAudit
 import com.nullsignal.core.story.Trigger
 
 /** Экраны лаунчера, которые можно открыть из терминала. */
@@ -12,6 +18,10 @@ enum class Module(val id: String, val title: String) {
     WIFI("wifi", "WIFI-RADAR"),
     BLE("ble", "BLE-RADAR"),
     ACADEMY("learn", "ACADEMY"),
+    AUDIT("audit", "AUDIT"),
+    TOOLS("tools", "TOOLS"),
+    MONITOR("mon", "MONITOR"),
+    GAMES("games", "GAMES"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -29,6 +39,7 @@ sealed interface Action {
     data class Open(val module: Module) : Action
     data class LaunchApp(val label: String) : Action
     data object Clear : Action
+    data object ToggleMatrix : Action
     /** Реальная команда, которую выполняет Android-часть (сеть, шелл). Вывод идёт потоком. */
     data class Exec(val command: String, val args: List<String>, val rawArgs: String) : Action
 }
@@ -92,6 +103,48 @@ class Terminal(private val env: TerminalEnv) {
                     "а сетевые инструменты работают только в твоей сети.",
                 ),
             )
+            "audit" -> Output(listOf("запускаю аудит…"), Action.Open(Module.AUDIT))
+            "tools", "vault" -> Output(listOf("открываю TOOLS…"), Action.Open(Module.TOOLS))
+            "mon", "monitor", "top" -> Output(listOf("открываю монитор сети…"), Action.Open(Module.MONITOR))
+            "games" -> Output(listOf("открываю GAMES…"), Action.Open(Module.GAMES))
+            "matrix" -> Output(listOf("wake up, ${env.operator}…"), Action.ToggleMatrix)
+            "rot13" -> Output(listOf(Ciphers.rot13(arg)))
+            "atbash" -> Output(listOf(Ciphers.atbash(arg)))
+            "rev" -> Output(listOf(arg.reversed()))
+            "caesar" -> caesar(arg)
+            "hex" -> codec(arg, "hex", Ciphers::hexEncode, Ciphers::hexDecode)
+            "bin" -> codec(arg, "bin", Ciphers::binEncode, Ciphers::binDecode)
+            "pwcheck" -> pwcheck(arg)
+            "encrypt" -> {
+                val pw = arg.substringBefore(' ')
+                val text = arg.substringAfter(' ', "")
+                if (pw.isEmpty() || text.isEmpty()) Output(listOf("использование: encrypt <пароль> <текст>"))
+                else Output(listOf(Crypto.encrypt(text, pw)))
+            }
+            "decrypt" -> {
+                val pw = arg.substringBefore(' ')
+                val blob = arg.substringAfter(' ', "")
+                if (pw.isEmpty() || blob.isEmpty()) Output(listOf("использование: decrypt <пароль> <ns1:…>"))
+                else Output(listOf(Crypto.decrypt(blob, pw) ?: "неверный пароль или повреждённые данные"))
+            }
+            "urlcheck", "phish" -> {
+                if (arg.isEmpty()) Output(listOf("использование: urlcheck <ссылка>"))
+                else UrlInspector.inspect(arg).let { r ->
+                    Output(listOf("домен: ${r.host ?: "?"}") +
+                        if (r.safeLooking) listOf("✓ явных признаков фишинга нет (это не гарантия)") else r.warnings.map { "⚠ $it" })
+                }
+            }
+            "jwt" -> WebAudit.decodeJwt(arg)?.let { (h, p) -> Output(listOf("header:  $h", "payload: $p", "(подпись не проверяется)")) }
+                ?: Output(listOf("использование: jwt <токен>"))
+            "portscan" -> {
+                val ip = arg.trim()
+                when {
+                    ip.isEmpty() -> Output(listOf("использование: portscan <ip в твоей сети>"))
+                    runCatching { Subnet.isPrivate(ip) }.getOrDefault(false) ->
+                        Output(emptyList(), Action.Exec("portscan", listOf(ip), ip))
+                    else -> Output(listOf("portscan работает только с адресами твоей локальной сети (192.168.x.x, 10.x.x.x, 172.16–31.x.x)"))
+                }
+            }
             "learn", "academy" -> Output(listOf("открываю курс Килобайта…"), Action.Open(Module.ACADEMY))
             "wifi" -> Output(listOf("включаю WIFI-радар…"), Action.Open(Module.WIFI))
             "ble", "bt" -> Output(listOf("включаю BLE-радар…"), Action.Open(Module.BLE))
@@ -137,6 +190,35 @@ class Terminal(private val env: TerminalEnv) {
         }
     }
 
+    private fun caesar(arg: String): Output {
+        val first = arg.substringBefore(' ')
+        val text = arg.substringAfter(' ', "")
+        if (first == "brute" && text.isNotEmpty()) return Output(Ciphers.caesarBrute(text))
+        val shift = first.toIntOrNull() ?: return Output(listOf("использование: caesar <сдвиг> <текст> | caesar brute <текст>"))
+        return Output(listOf(Ciphers.caesar(text, shift)))
+    }
+
+    private fun codec(arg: String, name: String, enc: (String) -> String, dec: (String) -> String?): Output {
+        val mode = arg.substringBefore(' ').lowercase()
+        val text = arg.substringAfter(' ', "")
+        return when (mode) {
+            "enc", "e" -> Output(listOf(enc(text)))
+            "dec", "d" -> Output(listOf(dec(text) ?: "$name: не получилось раскодировать"))
+            else -> Output(listOf("использование: $name <enc|dec> <текст>"))
+        }
+    }
+
+    private fun pwcheck(p: String): Output {
+        if (p.isEmpty()) return Output(listOf("использование: pwcheck <пароль>  (никуда не отправляется)"))
+        val r = PasswordStrength.check(p)
+        return Output(
+            listOf(
+                "надёжность: ${r.verdict}  (~${r.entropyBits.toInt()} бит)",
+                "перебор на мощной видеокарте: ${PasswordStrength.humanTime(r.crackSeconds)}",
+            ) + r.issues.map { "  - $it" },
+        )
+    }
+
     private fun openModule(name: String): Output {
         val m = Module.entries.firstOrNull { it.id.equals(name, true) || it.title.equals(name, true) }
             ?: return Output(listOf("модули: " + Module.entries.joinToString(" ") { it.id }))
@@ -168,6 +250,25 @@ class Terminal(private val env: TerminalEnv) {
             "  hash <md5|sha1|sha256> <текст>",
             "  b64 <enc|dec> <текст>",
             "  passgen [длина]   стойкий пароль",
+            "",
+            "сеть:",
+            "  traceroute <хост> маршрут пакетов до сайта",
+            "  dig <домен> [тип] DNS-записи: A AAAA MX TXT NS",
+            "  ssl <домен>       сертификат и шифрование сайта",
+            "  sechead <url>     заголовки безопасности сайта",
+            "  whois <домен>     кто владеет доменом",
+            "  myip              внешний IP",
+            "  wifiinfo          текущее Wi-Fi подключение",
+            "  portscan <ip>     порты устройства в своей сети",
+            "",
+            "крипто:",
+            "  pwcheck <пароль>  надёжность пароля",
+            "  encrypt / decrypt <пароль> <текст>  AES-256",
+            "  caesar <n> <т> | caesar brute <т>   rot13  atbash  rev",
+            "  hex / bin <enc|dec> <текст>   jwt <токен>",
+            "  urlcheck <ссылка> проверка на фишинг",
+            "",
+            "модули: audit tools mon games learn  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */
@@ -178,6 +279,13 @@ class Terminal(private val env: TerminalEnv) {
             "nc" to "nc <хост> <порт>",
             "sh" to "sh <команда>",
             "sysinfo" to "",
+            "traceroute" to "traceroute <хост>",
+            "dig" to "dig <домен> [A|AAAA|MX|TXT|NS|CNAME]",
+            "ssl" to "ssl <домен>",
+            "sechead" to "sechead <url>",
+            "whois" to "whois <домен>",
+            "myip" to "",
+            "wifiinfo" to "",
         )
     }
 }

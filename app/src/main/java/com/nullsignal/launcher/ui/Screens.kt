@@ -77,8 +77,8 @@ fun NetScanScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                         else "порты: " + h.ports.joinToString { "$it/${Subnet.COMMON_PORTS[it]}" },
                         style = Ns.small.copy(color = if (h.ports.isEmpty()) Ns.Dim else Ns.Green),
                     )
-                    if (5555 in h.ports || 23 in h.ports) {
-                        Text("⚠ открыт ${if (5555 in h.ports) "ADB" else "telnet"} — опасно, закрой на устройстве", style = Ns.small.copy(color = Ns.Red))
+                    h.ports.mapNotNull { Subnet.ADVICE[it] }.forEach { advice ->
+                        Text("⚠ $advice", style = Ns.small.copy(color = Ns.Amber))
                     }
                 }
             }

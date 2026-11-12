@@ -82,6 +82,27 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun markRead() = save(engine.markRead(progress))
 
+    // ---------- эффекты и игры ----------
+
+    var matrix by mutableStateOf(prefs.getBoolean("matrix", true))
+        private set
+
+    fun toggleMatrix() {
+        matrix = !matrix
+        prefs.edit().putBoolean("matrix", matrix).apply()
+    }
+
+    var cipherLevel by mutableStateOf(prefs.getInt("cipher", 0))
+        private set
+    var vulnLevel by mutableStateOf(prefs.getInt("vuln", 0))
+        private set
+    var nodesWins by mutableStateOf(prefs.getInt("nodes", 0))
+        private set
+
+    fun setCipherLevel(n: Int) { cipherLevel = n; prefs.edit().putInt("cipher", n).apply() }
+    fun setVulnLevel(n: Int) { vulnLevel = n; prefs.edit().putInt("vuln", n).apply() }
+    fun addNodesWin() { nodesWins++; prefs.edit().putInt("nodes", nodesWins).apply() }
+
     // ---------- ACADEMY ----------
 
     var lessonsDone by mutableStateOf(prefs.getStringSet("lessons", emptySet())!!.toSet())
@@ -174,6 +195,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
             }
+            Action.ToggleMatrix -> toggleMatrix()
             Action.Clear, null -> Unit
         }
         while (termLines.size > 1500) termLines.removeAt(0)

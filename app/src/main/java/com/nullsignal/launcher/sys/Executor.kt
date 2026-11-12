@@ -42,6 +42,14 @@ class Executor(private val ctx: Context) {
                 "nc" -> nc(cmd.args, out)
                 "sh" -> shell(cmd.rawArgs, out)
                 "sysinfo" -> sysinfo(out)
+                "traceroute" -> NetTools.traceroute(cmd.args[0], out)
+                "dig" -> NetTools.dig(cmd.args[0], cmd.args.getOrNull(1) ?: "A", out)
+                "ssl" -> NetTools.ssl(cmd.args[0], out)
+                "sechead" -> NetTools.sechead(cmd.args[0], out)
+                "whois" -> NetTools.whois(cmd.args[0], out)
+                "myip" -> NetTools.myip(ctx, out)
+                "wifiinfo" -> NetTools.wifiinfo(ctx, out)
+                "portscan" -> NetTools.portscan(cmd.args[0], out)
                 else -> out("${cmd.command}: не реализовано")
             }
         } catch (e: Exception) {

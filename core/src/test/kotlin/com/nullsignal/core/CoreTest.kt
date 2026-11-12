@@ -26,7 +26,7 @@ class QuestEngineTest {
 
     @Test fun `story plays through in order`() {
         var p = Progress()
-        for (t in listOf(Trigger.WHOAMI, Trigger.SCAN_DONE, Trigger.BREACH_WON, Trigger.SIGNAL_CMD)) {
+        for (t in Story.chapters.mapNotNull { it.trigger }) {
             val before = p.chapter
             p = engine.on(p, t)
             assertEquals(before + 1, p.chapter)
@@ -34,7 +34,7 @@ class QuestEngineTest {
         assertNull(engine.current(p).trigger)
         assertEquals(Story.chapters.sumOf { it.reward }, p.followers)
         // На последней главе ничего не ломается
-        assertEquals(p, engine.on(p, Trigger.SIGNAL_CMD))
+        assertEquals(p, engine.on(p, Trigger.NODES_WON))
     }
 
     @Test fun `unread counts new messages`() {

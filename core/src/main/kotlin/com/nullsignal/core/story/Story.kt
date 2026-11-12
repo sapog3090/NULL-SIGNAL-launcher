@@ -6,6 +6,10 @@ enum class Trigger {
     SCAN_DONE,       // закончил сканирование своей сети
     BREACH_WON,      // прошёл тренировочный взлом
     SIGNAL_CMD,      // ввёл signal в терминале
+    AUDIT_DONE,      // проверил свой телефон в AUDIT
+    CIPHER_WON,      // расшифровал все перехваты
+    VULN_WON,        // нашёл все дыры в коде
+    NODES_WON,       // собрал сеть в «Узлах»
 }
 
 /** Участник группировки NULL//SIGNAL. */
@@ -78,10 +82,52 @@ object Story {
             reward = 300,
         ),
         Chapter(
+            id = "audit",
+            messages = listOf(
+                Message(Member.KILOBYTE, "сигнал принят. теперь серьёзно"),
+                Message(Member.KILOBYTE, "первое, что делает нормальный безопасник — чинит СВОЁ. Helix первым делом ломает телефоны тех, кто против них"),
+                Message(Member.KILOBYTE, "открой AUDIT и проверь свой телефон. что красное — исправь"),
+            ),
+            objective = "Проверь свой телефон в AUDIT",
+            trigger = Trigger.AUDIT_DONE,
+            reward = 80,
+        ),
+        Chapter(
+            id = "cipher",
+            messages = listOf(
+                Message(Member.JAY, "Мы перехватили переписку курьеров Helix. Они не доверяют мессенджерам и шифруют всё по старинке."),
+                Message(Member.JAY, "GAMES → ШИФРЫ. Расшифруй все перехваты. Терминал поможет: b64, hex, rot13, caesar."),
+            ),
+            objective = "Расшифруй все перехваты: GAMES → ШИФРЫ",
+            trigger = Trigger.CIPHER_WON,
+            reward = 150,
+        ),
+        Chapter(
+            id = "vuln",
+            messages = listOf(
+                Message(Member.RAVEN, "Из перехватов ясно: у Helix утекли исходники их портала «Прозрачный город»."),
+                Message(Member.RAVEN, "Найди в них все дыры. Мы передадим отчёт журналистам — пусть весь город узнает, как они берегут чужие данные."),
+                Message(Member.RAVEN, "GAMES → КОД."),
+            ),
+            objective = "Найди все уязвимости: GAMES → КОД",
+            trigger = Trigger.VULN_WON,
+            reward = 200,
+        ),
+        Chapter(
+            id = "nodes",
+            messages = listOf(
+                Message(Member.KILOBYTE, "журналистам нужен канал, который Helix не заглушит"),
+                Message(Member.KILOBYTE, "собери mesh-сеть из узлов, чтобы всё сходилось к нашему серверу. GAMES → УЗЛЫ"),
+            ),
+            objective = "Собери сеть: GAMES → УЗЛЫ",
+            trigger = Trigger.NODES_WON,
+            reward = 200,
+        ),
+        Chapter(
             id = "tbc",
             messages = listOf(
-                Message(Member.KILOBYTE, "сигнал принят"),
-                Message(Member.RAVEN, "Helix запускает что-то под названием «Прозрачный город». Скоро расскажу больше. Держи телефон рядом."),
+                Message(Member.JAY, "Отчёт ушёл. Утром это будет на всех новостных сайтах."),
+                Message(Member.RAVEN, "Хорошая работа, оператор. Но Helix так просто не сдастся. Держи телефон рядом."),
             ),
             objective = "Ждать сигнала… (продолжение следует)",
             trigger = null,
