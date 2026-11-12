@@ -138,8 +138,8 @@ private fun ColumnScope.SerialTab(devices: List<UsbDevice>, baud: Int, onBaud: (
         item { Text(SerialLink.partial, style = Ns.text.copy(fontSize = 12.sp, color = Ns.Red)) }
     }
     Row(Modifier.horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Chip("DTR", if (SerialLink.dtr) Ns.Red else Ns.Dim, Modifier.clickable { SerialLink.setDtr(!SerialLink.dtr) })
-        Chip("RTS", if (SerialLink.rts) Ns.Red else Ns.Dim, Modifier.clickable { SerialLink.setRts(!SerialLink.rts) })
+        Chip("DTR", if (SerialLink.dtr) Ns.Red else Ns.Dim, Modifier.clickable { SerialLink.switchDtr(!SerialLink.dtr) })
+        Chip("RTS", if (SerialLink.rts) Ns.Red else Ns.Dim, Modifier.clickable { SerialLink.switchRts(!SerialLink.rts) })
         Chip("HEX", if (SerialLink.hex) Ns.Red else Ns.Dim, Modifier.clickable { SerialLink.hex = !SerialLink.hex })
         Chip(when (ending) { "\r\n" -> "CRLF"; "\n" -> "LF"; else -> "БЕЗ ⏎" }, Ns.Green, Modifier.clickable {
             ending = when (ending) { "\r\n" -> "\n"; "\n" -> ""; else -> "\r\n" }

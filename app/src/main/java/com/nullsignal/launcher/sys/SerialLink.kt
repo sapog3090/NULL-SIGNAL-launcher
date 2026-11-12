@@ -130,8 +130,8 @@ object SerialLink {
 
     fun sendLine(text: String, ending: String) = send((text + ending).toByteArray())
 
-    fun setDtr(v: Boolean) { dtr = v; runCatching { port?.setDTR(v) } }
-    fun setRts(v: Boolean) { rts = v; runCatching { port?.setRTS(v) } }
+    fun switchDtr(v: Boolean) { dtr = v; runCatching { port?.setDTR(v) } }
+    fun switchRts(v: Boolean) { rts = v; runCatching { port?.setRTS(v) } }
 
     /** Сброс платы: Arduino перезагружается по фронту DTR, ESP32 — по RTS (EN). */
     fun reset() {
