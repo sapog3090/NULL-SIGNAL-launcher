@@ -54,17 +54,41 @@ fun BreachScreen(vm: LauncherViewModel, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val prefs = remember { ctx.getSharedPreferences("breach", 0) }
     var round by remember { mutableIntStateOf(0) }
-    val game = remember(round) { Breach() }
+    // финальный замок сюжета: архив Helix, 8 попыток вместо 10
+    val finalIdx = remember { com.nullsignal.core.story.Story.chapters.indexOfFirst { it.id == "core" } }
+    val finalOpen = finalIdx in 0..vm.progress.chapter
+    var archive by remember { mutableStateOf(finalOpen && vm.engine.current(vm.progress).id == "core") }
+    val game = remember(round, archive) { if (archive) Breach(maxAttempts = 8) else Breach() }
     // попытки показываем из своего списка: его меняет только главный поток, даже когда играет скрипт
-    val attempts = remember(round) { mutableStateListOf<Breach.Attempt>() }
-    var state by remember(round) { mutableStateOf(Breach.State.RUNNING) }
+    val attempts = remember(round, archive) { mutableStateListOf<Breach.Attempt>() }
+    var state by remember(round, archive) { mutableStateOf(Breach.State.RUNNING) }
     var tab by remember { mutableIntStateOf(prefs.getInt("tab", 0)) }
     val run = remember { ScriptRun() }
 
-    LaunchedEffect(state) { if (state == Breach.State.WON) vm.fire(Trigger.BREACH_WON) }
+    LaunchedEffect(state, archive) {
+        if (state == Breach.State.WON) {
+            vm.fire(Trigger.BREACH_WON)
+            if (archive) vm.fire(Trigger.FINAL_BREACH)
+        }
+    }
     DisposableEffect(Unit) { onDispose { run.stop() } }
 
     ModuleScreen("BREACH", onBack) {
+        if (finalOpen) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Chip("ТРЕНАЖЁР", if (!archive) Ns.Green else Ns.Dim, Modifier.clickable { if (archive) { run.stop(); archive = false } })
+                Chip("АРХИВ HELIX", if (archive) Ns.Red else Ns.Dim, Modifier.clickable { if (!archive) { run.stop(); archive = true } })
+            }
+            if (archive) Text(
+                when (state) {
+                    Breach.State.RUNNING -> "Замок архива: 4 символа, 8 попыток. Ошибёшься — архив сотрётся, но у группы есть копия."
+                    Breach.State.WON -> "АРХИВ ОТКРЫТ. Читай MESSAGES."
+                    Breach.State.LOST -> "Архив стёрт. Килобайт загружает копию — жми «заново» и попробуй другой подход."
+                },
+                style = Ns.small.copy(color = if (state == Breach.State.WON) Ns.Green else Ns.Red),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp).hud(Ns.Red.copy(alpha = 0.5f)).padding(8.dp),
+            )
+        }
         NsTabs(listOf("ВРУЧНУЮ", "СКРИПТОМ"), tab, Ns.Red) { tab = it; prefs.edit().putInt("tab", it).apply() }
         if (tab == 0) {
             ManualTab(game, attempts, state, prefs, run.running, onGuess = { state = game.state }, newRound = { round++ })
@@ -73,7 +97,10 @@ fun BreachScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                 game, attempts, state, prefs, run, scope,
                 onDone = {
                     state = game.state
-                    if (game.state == Breach.State.WON) vm.fire(Trigger.BREACH_SCRIPT)
+                    if (game.state == Breach.State.WON) {
+                        vm.fire(Trigger.BREACH_SCRIPT)
+                        if (archive) vm.fire(Trigger.FINAL_BREACH)
+                    }
                 },
                 newRound = { round++ },
             )

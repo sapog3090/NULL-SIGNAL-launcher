@@ -148,7 +148,7 @@ private suspend fun listen(ctx: android.content.Context, rx: RxState, quiet: Boo
 }
 
 @Composable
-fun SonicScreen(onBack: () -> Unit) {
+fun SonicScreen(onBack: () -> Unit, onSent: () -> Unit = {}) {
     val ctx = LocalContext.current
     var tab by remember { mutableIntStateOf(0) }
     var quiet by remember { mutableStateOf(false) }
@@ -161,12 +161,12 @@ fun SonicScreen(onBack: () -> Unit) {
             Chip("ТИХО 16.8–18.6 кГц", if (quiet) Ns.Red else Ns.Dim, Modifier.clickable { quiet = true })
             if (rx.listening && tab == 0) PulseDot(if (rx.receiving) Ns.Red else Ns.Green, 7.dp)
         }
-        if (tab == 0) SendTab(quiet, rx.listening) else ReceiveTab(rx)
+        if (tab == 0) SendTab(quiet, rx.listening, onSent) else ReceiveTab(rx)
     }
 }
 
 @Composable
-private fun ColumnScope.SendTab(quiet: Boolean, listening: Boolean) {
+private fun ColumnScope.SendTab(quiet: Boolean, listening: Boolean, onSent: () -> Unit) {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -222,6 +222,7 @@ private fun ColumnScope.SendTab(quiet: Boolean, listening: Boolean) {
                 val payload = withContext(Dispatchers.Default) { if (sealed) SoundNote.seal(text, password) else SoundNote.plain(text) }
                 val pcm = withContext(Dispatchers.Default) { SoundModem.encode(payload, band(quiet), if (quiet) 0.95 else 0.8) }
                 play(pcm) { p -> progress = p }
+                onSent()
             }.onFailure { error = "не получилось: ${it.message ?: it.javaClass.simpleName}" }
             progress = -1f
         }

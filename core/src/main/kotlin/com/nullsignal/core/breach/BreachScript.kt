@@ -121,6 +121,50 @@ class BreachScript(val game: Breach, out: (String) -> Unit, private val onAttemp
                 """.trimIndent() + "\n",
             ),
             Template(
+                "УМНЫЙ", "минимакс: ход, после которого в худшем случае останется меньше всего ключей",
+                """
+                # Умный решатель для замка с малым числом попыток.
+                # Простой берёт случайный подходящий ключ. Умный примеряет
+                # несколько кандидатов и выбирает тот, после которого
+                # в ХУДШЕМ случае останется меньше всего вариантов.
+                import itertools
+                import random
+
+                variants = ["".join(p) for p in itertools.product(ALPHABET, repeat=LENGTH)]
+                for old_code, e, m in history():
+                    variants = [v for v in variants if score(v, old_code) == (e, m)]
+
+                openers = [] if history() else [ALPHABET[i:i + LENGTH] for i in range(0, 12, LENGTH)]
+
+                def worst_case(code, sample):
+                    # делим выборку на группы по ответу — чем больше самая
+                    # крупная группа, тем хуже ход
+                    groups = {}
+                    for v in sample:
+                        answer = score(v, code)
+                        groups[answer] = groups.get(answer, 0) + 1
+                    return max(groups.values())
+
+                while attempts_left() > 0:
+                    if openers:
+                        code = openers.pop(0)
+                    elif len(variants) <= 2:
+                        code = variants[0]
+                    else:
+                        sample = random.sample(variants, min(150, len(variants)))
+                        candidates = random.sample(variants, min(25, len(variants)))
+                        code = min(candidates, key=lambda c: worst_case(c, sample))
+
+                    exact, misplaced = guess(code)
+                    print(code, "●" * exact + "○" * misplaced, "попыток осталось:", attempts_left())
+                    if exact == LENGTH:
+                        print("ДОСТУП ПОЛУЧЕН:", code)
+                        break
+                    variants = [v for v in variants if score(v, code) == (exact, misplaced)]
+                    print("   вариантов:", len(variants))
+                """.trimIndent() + "\n",
+            ),
+            Template(
                 "С НУЛЯ", "заготовка: одна попытка и разбор ответа — допиши сам",
                 """
                 # Что умеет скрипт:

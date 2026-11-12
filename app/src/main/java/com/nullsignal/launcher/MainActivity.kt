@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (savedInstanceState == null) handleShare(intent)
+        // шифрочат работает и при закрытом экране: новые сообщения всплывают уведомлением
+        com.nullsignal.launcher.sys.ChatSession.onIncoming = { m -> vm.toast("ШИФРОЧАТ ▸ ${m.from}: ${m.text.take(70)}") }
         setContent {
             NsTheme {
                 val home = { vm.screen = Module.HOME }
@@ -99,11 +101,11 @@ class MainActivity : ComponentActivity() {
                         Module.SSH -> com.nullsignal.launcher.ui.SshScreen(vm, home)
                         Module.BOARDS -> com.nullsignal.launcher.ui.BoardsScreen(home)
                         Module.MITM -> com.nullsignal.launcher.ui.MitmScreen(home) { vm.fire(com.nullsignal.core.story.Trigger.MITM_DONE) }
-                        Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home)
+                        Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home) { vm.fire(com.nullsignal.core.story.Trigger.SOUND_SENT) }
                         Module.PYTHON -> com.nullsignal.launcher.ui.PythonScreen(vm, home)
                         Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home, vm.moduleArg, { vm.moduleArg = null }) { vm.fire(com.nullsignal.core.story.Trigger.DECODED) }
                         Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home, vm.sharedFile, { vm.sharedFile = null }) { vm.fire(com.nullsignal.core.story.Trigger.FILE_CHECKED) }
-                        Module.SPECTRUM -> com.nullsignal.launcher.ui.SpectrumScreen(home)
+                        Module.SPECTRUM -> com.nullsignal.launcher.ui.SpectrumScreen(home) { vm.fire(com.nullsignal.core.story.Trigger.BEACON_SCAN) }
                         Module.DROP -> com.nullsignal.launcher.ui.DropScreen(home)
                         Module.LANCHAT -> com.nullsignal.launcher.ui.LanChatScreen(vm, home)
                         Module.BTREMOTE -> com.nullsignal.launcher.ui.BtRemoteScreen(home)

@@ -12,7 +12,6 @@ import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.net.Uri
-import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Environment
 import android.os.Handler
@@ -64,9 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nullsignal.core.hw.Spectrum
-import com.nullsignal.core.net.ChatNode
 import com.nullsignal.core.net.DropServer
-import com.nullsignal.launcher.LauncherViewModel
 import com.nullsignal.launcher.sys.NetInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -75,7 +72,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
-import java.net.InetSocketAddress
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -121,7 +117,7 @@ private fun columns(db: FloatArray, cols: Int, fromHz: Double, toHz: Double): Fl
 
 @SuppressLint("MissingPermission")
 @Composable
-fun SpectrumScreen(onBack: () -> Unit) {
+fun SpectrumScreen(onBack: () -> Unit, onListened: () -> Unit = {}) {
     val ctx = LocalContext.current
     val (granted, request) = rememberPermissions(arrayOf(Manifest.permission.RECORD_AUDIO))
     var listening by remember { mutableStateOf(true) }
@@ -175,6 +171,8 @@ fun SpectrumScreen(onBack: () -> Unit) {
                         val out = analyzer.analyze(buf)
                         time += hop.toDouble() / RATE
                         beacons = watch.feed(out, time)
+                        // полминуты честного прослушивания — для сюжета этого достаточно
+                        if (time >= 30.0 && time - hop.toDouble() / RATE < 30.0) withContext(Dispatchers.Main) { onListened() }
                         peaks = Spectrum.peaks(out, RATE, count = 3)
                         db = out
                         // водопад: сдвигаем картинку вверх и дописываем строку снизу
@@ -451,113 +449,5 @@ fun DropScreen(onBack: () -> Unit) {
                 view.keepScreenOn = false
             }
         }
-    }
-}
-
-// ======================= ЛОКАЛЬНЫЙ ЧАТ =======================
-
-@Composable
-fun LanChatScreen(vm: LauncherViewModel, onBack: () -> Unit) {
-    val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val prefs = remember { ctx.getSharedPreferences("lanchat", 0) }
-    val main = remember { Handler(Looper.getMainLooper()) }
-    var room by remember { mutableStateOf(prefs.getString("room", "") ?: "") }
-    var nick by remember { mutableStateOf(prefs.getString("nick", null) ?: vm.operator) }
-    var node by remember { mutableStateOf<ChatNode?>(null) }
-    var joining by remember { mutableStateOf(false) }
-    val messages = remember { mutableStateListOf<ChatNode.Message>() }
-    var peers by remember { mutableStateOf<List<String>>(emptyList()) }
-    var input by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    val list = rememberLazyListState()
-    // без этой блокировки многие телефоны не принимают широковещательные пакеты Wi-Fi
-    val lock = remember {
-        (ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager)?.createMulticastLock("nullsignal-chat")?.apply { setReferenceCounted(false) }
-    }
-
-    fun leave() {
-        node?.let { n -> Thread { n.stop() }.start() }
-        node = null
-        runCatching { lock?.release() }
-    }
-    DisposableEffect(Unit) { onDispose { leave() } }
-    LaunchedEffect(messages.size) { if (messages.isNotEmpty()) list.scrollToItem(messages.size - 1) }
-
-    fun join() {
-        val net = NetInfo.local(ctx)
-        if (net == null) { error = "нет сети: подключись к Wi-Fi"; return }
-        if (room.trim().length < 4) { error = "кодовое слово — хотя бы 4 символа"; return }
-        prefs.edit().putString("room", room.trim()).putString("nick", nick.trim()).apply()
-        error = null
-        joining = true
-        val hosts = listOfNotNull(ChatNode.broadcast(net.ip, net.prefix), "255.255.255.255").distinct()
-        scope.launch {
-            val r = withContext(Dispatchers.IO) {
-                runCatching {
-                    val targets = hosts.map { InetSocketAddress(it, ChatNode.DEFAULT_PORT) }
-                    ChatNode(
-                        room, nick.trim().ifEmpty { "аноним" }, ChatNode.DEFAULT_PORT, { targets },
-                        { m -> main.post { messages += m; if (messages.size > 500) messages.removeAt(0) } },
-                        { p -> main.post { peers = p } },
-                    ).also { runCatching { lock?.acquire() }; it.start() }
-                }
-            }
-            joining = false
-            r.onSuccess { node = it }.onFailure { error = "не удалось открыть канал: ${it.message ?: it.javaClass.simpleName}" }
-        }
-    }
-
-    ModuleScreen("ЛОКАЛЬНЫЙ ЧАТ", onBack) {
-        val n = node
-        if (n == null) {
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
-                Text(
-                    "Чат для тех, кто в одной сети Wi-Fi: без интернета, серверов и регистрации. Договоритесь о кодовом слове — " +
-                        "из него получается ключ шифрования AES-256, и сообщения читают только те, кто его знает.",
-                    style = Ns.small,
-                )
-                SectionTitle("позывной")
-                NsField(nick, { nick = it.take(24) }, "как тебя подписывать")
-                SectionTitle("кодовое слово комнаты")
-                NsField(room, { room = it }, "одинаковое у всех участников")
-                error?.let { Text(it, style = Ns.small.copy(color = Ns.Red), modifier = Modifier.padding(top = 6.dp)) }
-                Text(
-                    "Работает в домашней сети. В гостевых и общественных Wi-Fi устройства часто изолированы друг от друга — там чат никого не найдёт.",
-                    style = Ns.small.copy(color = Ns.Dim), modifier = Modifier.padding(vertical = 10.dp),
-                )
-            }
-            TermButton(if (joining) "ОТКРЫВАЮ КАНАЛ…" else "ВОЙТИ В КОМНАТУ", Modifier.fillMaxWidth(), color = Ns.Red, enabled = !joining) { join() }
-            return@ModuleScreen
-        }
-        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("отпечаток комнаты ${n.fingerprint}", style = Ns.label.copy(color = Ns.Red))
-                Text(
-                    if (peers.isEmpty()) "в эфире пока только ты" else "в эфире: " + peers.joinToString(),
-                    style = Ns.small.copy(color = if (peers.isEmpty()) Ns.Dim else Ns.Green), maxLines = 2,
-                )
-            }
-            Chip("ВЫЙТИ", Ns.Dim, Modifier.clickable { leave() })
-        }
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().hud(Ns.Faint).padding(8.dp), state = list, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (messages.isEmpty()) item {
-                Text("Сообщений нет. Если у собеседника тот же отпечаток комнаты — вы на одной волне и можете писать.", style = Ns.small)
-            }
-            items(messages) { m ->
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = if (m.mine) Alignment.End else Alignment.Start) {
-                    Text(
-                        (if (m.mine) "ты" else m.from) + " · " + SimpleDateFormat("HH:mm", Locale.US).format(Date(m.time)),
-                        style = Ns.label.copy(color = if (m.mine) Ns.Dim else Ns.Red),
-                    )
-                    SelectionContainer { Text(m.text, style = Ns.text.copy(color = if (m.mine) Ns.Text2 else Ns.Green)) }
-                }
-            }
-        }
-        Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            NsField(input, { input = it.take(ChatNode.MAX_TEXT) }, "сообщение", Modifier.weight(1f), onDone = { n.send(input); input = "" })
-            Text("  ⏎", style = Ns.title.copy(color = Ns.Red), modifier = Modifier.clickable { n.send(input); input = "" }.padding(horizontal = 6.dp))
-        }
-        Spacer(Modifier.height(4.dp))
     }
 }

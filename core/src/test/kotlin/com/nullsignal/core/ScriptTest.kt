@@ -29,6 +29,24 @@ class ScriptTest {
         assertTrue("побед $wins из $games", wins >= games * 85 / 100)
     }
 
+    @Test fun smartSolverOpensFinalLock() {
+        val smart = BreachScript.TEMPLATES.first { it.title == "УМНЫЙ" }.code
+        var wins = 0
+        val games = 16
+        var worst = 0L
+        for (seed in 1..games) {
+            val game = Breach(maxAttempts = 8, random = Random(seed * 31))
+            val s = BreachScript(game, {})
+            s.py.random.setSeed(seed.toLong())
+            val r = s.run(smart)
+            assertTrue(r.problem?.text() ?: r.halted ?: "", r.ok)
+            if (game.state == Breach.State.WON) wins++
+            worst = maxOf(worst, r.millis)
+        }
+        println("smart: $wins/$games побед за 8 попыток, самый долгий запуск $worst мс")
+        assertTrue("побед $wins из $games", wins >= games * 70 / 100)
+    }
+
     @Test fun otherTemplatesRunCleanly() {
         for (t in BreachScript.TEMPLATES.drop(1)) {
             val out = StringBuilder()
@@ -39,7 +57,7 @@ class ScriptTest {
         }
         // перебор подряд тратит все попытки и не падает
         val game = Breach(secret = "9F3A")
-        BreachScript(game, {}).run(BreachScript.TEMPLATES[2].code)
+        BreachScript(game, {}).run(BreachScript.TEMPLATES.first { it.title == "ПОДРЯД" }.code)
         assertEquals(Breach.State.LOST, game.state)
     }
 

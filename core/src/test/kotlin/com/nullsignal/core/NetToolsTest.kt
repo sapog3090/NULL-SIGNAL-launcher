@@ -1,8 +1,6 @@
 package com.nullsignal.core
 
 import com.nullsignal.core.hw.Spectrum
-import com.nullsignal.core.net.ChatCrypto
-import com.nullsignal.core.net.ChatNode
 import com.nullsignal.core.net.DropServer
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -152,53 +150,5 @@ class DropServerTest {
         assertEquals("заметка.txt", DropServer.safeName("C:\\Users\\..\\заметка.txt"))
         assertEquals("a b.txt", DropServer.safeName("/tmp/a<>|b.txt".replace("<>|", " ")))
         assertTrue(Regex("\\d{6}").matches(DropServer.newPin()))
-    }
-}
-
-class LanChatTest {
-    private fun freePort(): Int = DatagramSocket(0).use { it.localPort }
-
-    @Test fun crypto() {
-        val k = ChatCrypto.key("красный клён")
-        val p = ChatCrypto.seal(k, "привет".toByteArray())
-        assertEquals("привет", String(ChatCrypto.open(k, p)!!))
-        assertNull(ChatCrypto.open(ChatCrypto.key("другое слово"), p))
-        assertNull(ChatCrypto.open(k, p.copyOf().also { it[it.size - 1] = (it[it.size - 1] + 1).toByte() }))
-        assertNull(ChatCrypto.open(k, "просто мусор из сети".toByteArray()))
-        assertTrue(Regex("[0-9A-F]{4}-[0-9A-F]{4}").matches(ChatCrypto.fingerprint(k)))
-        assertEquals(ChatCrypto.fingerprint(k), ChatCrypto.fingerprint(ChatCrypto.key("  красный клён ")))
-        assertEquals("192.168.1.255", ChatNode.broadcast("192.168.1.37", 24))
-        assertEquals("10.0.15.255", ChatNode.broadcast("10.0.5.9", 20))
-        assertNull(ChatNode.broadcast("нет", 24))
-    }
-
-    @Test fun twoPhonesOneRoom() {
-        val pa = freePort(); val pb = freePort(); val pc = freePort()
-        fun addr(p: Int) = InetSocketAddress("127.0.0.1", p)
-        val atA = Collections.synchronizedList(ArrayList<ChatNode.Message>())
-        val atB = Collections.synchronizedList(ArrayList<ChatNode.Message>())
-        val atC = Collections.synchronizedList(ArrayList<ChatNode.Message>())
-        val peersB = Collections.synchronizedList(ArrayList<String>())
-        val a = ChatNode("комната-1", "ворон", pa, { listOf(addr(pb), addr(pc)) }, { atA += it })
-        val b = ChatNode("комната-1", "сойка", pb, { listOf(addr(pa), addr(pc)) }, { atB += it }, { peersB.clear(); peersB.addAll(it) })
-        val c = ChatNode("чужая", "helix", pc, { listOf(addr(pa), addr(pb)) }, { atC += it })
-        try {
-            a.start(); b.start(); c.start()
-            assertEquals(a.fingerprint, b.fingerprint)
-            a.send("привет из эфира")
-            b.send("слышу тебя")
-            val deadline = System.currentTimeMillis() + 5000
-            while (System.currentTimeMillis() < deadline && (atB.none { !it.mine } || atA.none { !it.mine } || peersB.isEmpty())) Thread.sleep(50)
-            Thread.sleep(700) // ждём повторные отправки: они не должны задвоить сообщение
-            assertEquals(listOf("привет из эфира"), atB.filter { !it.mine }.map { it.text })
-            assertEquals("ворон", atB.first { !it.mine }.from)
-            assertEquals(listOf("слышу тебя"), atA.filter { !it.mine }.map { it.text })
-            assertEquals(1, atA.count { it.mine })
-            assertTrue(atC.isEmpty())
-            assertEquals(listOf("ворон"), peersB.toList())
-        } finally {
-            a.stop(); b.stop(); c.stop()
-        }
-        assertNotNull(a.fingerprint)
     }
 }

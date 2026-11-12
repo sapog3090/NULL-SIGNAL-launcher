@@ -106,6 +106,10 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         if (chapterId in replies) return
         replies = replies + (chapterId to index)
         prefs.edit().putStringSet("replies", replies.map { "${it.key}:${it.value}" }.toSet()).apply()
+        // главы-развилки двигаются выбором ответа; сначала дадим прочитать ответ собеседников
+        if (engine.current(progress).id == chapterId && engine.current(progress).trigger == Trigger.REPLIED) {
+            viewModelScope.launch { delay(3500); fire(Trigger.REPLIED) }
+        }
     }
 
     // ---------- эффекты и игры ----------
@@ -229,6 +233,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         override val followers get() = progress.followers
         override val apps get() = this@LauncherViewModel.apps.map { it.label }
         override fun now(): String = SimpleDateFormat("EEE dd.MM.yyyy HH:mm:ss zzz", Locale("ru")).format(Date())
+        override fun answer(text: String): Boolean? = engine.check(progress, text)
     }
     private val terminal = Terminal(env)
     val prompt: String get() = terminal.prompt()

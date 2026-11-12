@@ -91,4 +91,43 @@ class StoryCipherTest {
         val ids = com.nullsignal.core.story.Story.chapters.map { it.id }
         assertEquals(ids.size, ids.toSet().size)
     }
+
+    @Test fun morseRiddleAndAnswers() {
+        val story = com.nullsignal.core.story.Story.chapters
+        val ch = story.first { it.id == "morse" }
+        val code = ch.messages.first { it.text.startsWith(".") }.text
+        val plain = com.nullsignal.core.spy.Morse.decode(code)
+        assertEquals("LOCKER 17", plain.uppercase())
+        // ДЕКОДЕР распознаёт морзянку сам
+        assertTrue(Codec.detect(code).any { it.text.uppercase().contains("LOCKER 17") })
+        val engine = com.nullsignal.core.story.QuestEngine()
+        val p = com.nullsignal.core.story.Progress(chapter = story.indexOf(ch))
+        assertEquals(true, engine.check(p, plain))
+        assertEquals(true, engine.check(p, "  Ячейка-17 "))
+        assertEquals(false, engine.check(p, "locker 71"))
+        assertEquals(false, engine.check(p, ""))
+        org.junit.Assert.assertNull(engine.check(com.nullsignal.core.story.Progress(), "locker 17"))
+        // через терминал: верный ответ двигает сюжет
+        val env = object : com.nullsignal.core.terminal.TerminalEnv {
+            override val operator = "op"
+            override val device = "test"
+            override val ip: String? = null
+            override val objective = engine.current(p).objective
+            override val followers = 0
+            override val apps = emptyList<String>()
+            override fun now() = "now"
+            override fun answer(text: String) = engine.check(p, text)
+        }
+        val t = com.nullsignal.core.terminal.Terminal(env)
+        assertEquals(com.nullsignal.core.story.Trigger.ANSWER, t.execute("answer locker 17").trigger)
+        assertEquals(null, t.execute("answer helix").trigger)
+        val next = engine.on(p, com.nullsignal.core.story.Trigger.ANSWER)
+        assertEquals("channel", engine.current(next).id)
+        // финал — развилка: двигается выбором ответа, у последней главы нет задачи
+        val reveal = story.first { it.id == "reveal" }
+        assertEquals(com.nullsignal.core.story.Trigger.REPLIED, reveal.trigger)
+        assertTrue(reveal.replies.size >= 2)
+        assertEquals(null, story.last().trigger)
+        assertTrue(engine.finished(com.nullsignal.core.story.Progress(chapter = story.lastIndex)))
+    }
 }

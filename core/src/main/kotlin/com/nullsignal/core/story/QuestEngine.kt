@@ -29,6 +29,22 @@ class QuestEngine(private val chapters: List<Chapter> = Story.chapters) {
 
     fun markRead(p: Progress): Progress = p.copy(readMessages = inbox(p).size)
 
+    /** Конец сюжета: последняя глава открыта. */
+    fun finished(p: Progress): Boolean = p.chapter >= chapters.lastIndex
+
+    /**
+     * Проверить ответ на загадку текущей главы: null — сейчас загадки нет,
+     * true — ответ верный (дальше нужен Trigger.ANSWER), false — мимо.
+     */
+    fun check(p: Progress, answer: String): Boolean? {
+        val ch = current(p)
+        if (ch.answers.isEmpty() || ch.trigger != Trigger.ANSWER) return null
+        val a = norm(answer)
+        return a.isNotEmpty() && ch.answers.any { norm(it) == a }
+    }
+
+    private fun norm(s: String) = s.lowercase().replace('ё', 'е').filter { it.isLetterOrDigit() }
+
     /** Применить событие. Если оно закрывает текущую главу, открываем следующую. */
     fun on(p: Progress, trigger: Trigger): Progress {
         val ch = current(p)

@@ -113,13 +113,13 @@ fun MessagesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
     ModuleScreen("MESSAGES", onBack) {
         Text("#nullsignal · ${com.nullsignal.core.story.Member.entries.size} участника · сквозное шифрование", style = Ns.small)
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            items(minOf(shown, items.size)) { i ->
+            items(minOf(shown, items.size), key = { it }) { i ->
                 val prev = items.getOrNull(i - 1)
                 when (val it = items[i]) { // it — элемент чата
                     is ChatItem.Msg -> {
                         val c = memberColor(it.m.from)
                         val sameAuthor = prev is ChatItem.Msg && prev.m.from == it.m.from
-                        Column(Modifier.fillMaxWidth(0.88f).padding(top = if (sameAuthor) 0.dp else 8.dp)) {
+                        Column(Modifier.animateItem().fillMaxWidth(0.88f).padding(top = if (sameAuthor) 0.dp else 8.dp)) {
                             if (!sameAuthor) Text(it.m.from.handle, style = Ns.label.copy(color = c))
                             androidx.compose.foundation.text.selection.SelectionContainer {
                                 Text(
@@ -147,7 +147,7 @@ fun MessagesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                 }
             }
             typing?.let { m ->
-                item { Text("${m.handle} печатает…", style = Ns.small.copy(color = memberColor(m)), modifier = Modifier.padding(top = 6.dp)) }
+                item { TypingLine(m.handle, memberColor(m)) }
             }
         }
         Text(
@@ -156,6 +156,14 @@ fun MessagesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(top = 6.dp).hud(Ns.Amber).padding(8.dp),
         )
     }
+}
+
+/** «ВОРОН печатает…» — точки бегут, как в настоящем мессенджере. */
+@Composable
+private fun TypingLine(who: String, color: androidx.compose.ui.graphics.Color) {
+    val t by rememberSeconds()
+    val dots = (t * 3f).toInt() % 4
+    Text("$who печатает" + ".".repeat(dots), style = Ns.small.copy(color = color), modifier = Modifier.padding(top = 6.dp))
 }
 
 @Composable

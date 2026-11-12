@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -106,6 +107,13 @@ fun Modifier.cyberBackground(): Modifier = this
     .background(Ns.Bg)
     .drawBehind {
         drawRect(Brush.radialGradient(listOf(Ns.Red.copy(alpha = 0.10f), Color.Transparent), Offset(size.width / 2, size.height * 1.05f), size.width))
+        // мягкая тёмная виньетка по краям: взгляд сам уходит к центру экрана
+        drawRect(
+            Brush.radialGradient(
+                0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.45f),
+                center = Offset(size.width / 2, size.height * 0.45f), radius = maxOf(size.width, size.height) * 0.75f,
+            ),
+        )
         val dot = Ns.Green.copy(alpha = 0.05f)
         GRAIN.forEach { drawCircle(dot, 1.1f, Offset(it.x * size.width, it.y * size.height)) }
     }
@@ -255,8 +263,10 @@ fun TermButton(
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val haptic = LocalHapticFeedback.current
+    val scale by animateFloatAsState(if (pressed) 0.97f else 1f, androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f), label = "btn")
     Box(
         modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(Ns.HudSmall)
             .background(if (pressed) c else c.copy(alpha = 0.04f))
             .border(1.dp, c.copy(alpha = if (enabled) 0.8f else 0.4f), Ns.HudSmall)

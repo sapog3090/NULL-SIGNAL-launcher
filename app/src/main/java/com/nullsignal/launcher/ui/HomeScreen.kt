@@ -126,7 +126,15 @@ fun HomeScreen(vm: LauncherViewModel) {
             Tile(Module.TERMINAL, "ТЕРМИНАЛ", "80+ команд", Ns.Green),
             Tile(Module.SSH, "SSH", "удалённый доступ", Ns.Green),
             Tile(Module.DROP, "ТАЙНИК", "файлы по Wi-Fi без облаков", Ns.Green),
-            Tile(Module.LANCHAT, "ЛОКАЛЬНЫЙ ЧАТ", "шифрованный, без интернета", Ns.Green),
+            Tile(
+                Module.LANCHAT, "ШИФРОЧАТ",
+                when {
+                    com.nullsignal.launcher.sys.ChatSession.unread > 0 -> "новых: ${com.nullsignal.launcher.sys.ChatSession.unread}"
+                    com.nullsignal.launcher.sys.ChatSession.node != null -> "в эфире: ${com.nullsignal.launcher.sys.ChatSession.peers.size}"
+                    else -> "Wi-Fi · P2P · любой город"
+                },
+                if (com.nullsignal.launcher.sys.ChatSession.unread > 0) Ns.Red else Ns.Green,
+            ),
         ),
         "разведка" to listOf(
             Tile(Module.OSINT, "OSINT", "ник · почта · IP · домен", Ns.Red),
@@ -251,9 +259,13 @@ fun HomeScreen(vm: LauncherViewModel) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PulseDot(Ns.Red, 7.dp)
                         Spacer(Modifier.width(6.dp))
-                        Text("ТЕКУЩАЯ ЗАДАЧА", style = Ns.label.copy(color = Ns.Red))
+                        val done = vm.engine.finished(vm.progress)
+                        Text(if (done) "СЕЗОН 1 ПРОЙДЕН" else "ТЕКУЩАЯ ЗАДАЧА", style = Ns.label.copy(color = Ns.Red), modifier = Modifier.weight(1f))
+                        val total = com.nullsignal.core.story.Story.chapters.size
+                        Text("${(vm.progress.chapter + 1).coerceAtMost(total)}/$total", style = Ns.label.copy(color = Ns.Dim))
                     }
                     Text(vm.engine.current(vm.progress).objective, style = Ns.text.copy(color = Ns.Green), modifier = Modifier.padding(top = 4.dp))
+                    HudBar(vm.progress.chapter.toFloat() / (com.nullsignal.core.story.Story.chapters.size - 1).coerceAtLeast(1), Ns.Red, Modifier.padding(top = 8.dp), 2.dp)
                 }
             }
             // ---------- модули по разделам ----------
@@ -318,10 +330,15 @@ private fun ModuleTile(t: Tile, modifier: Modifier, onClick: () -> Unit) {
     val pressed by source.collectIsPressedAsState()
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     val glow by androidx.compose.animation.core.animateFloatAsState(if (pressed) 1f else 0.55f, androidx.compose.animation.core.tween(160), label = "tile")
+    // пружинка при нажатии: плитка чуть проседает и мягко возвращается
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        if (pressed) 0.96f else 1f,
+        androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 700f), label = "tile-scale",
+    )
     Column(
         modifier
             .height(88.dp)
-            .graphicsLayer { val s = if (pressed) 0.97f else 1f; scaleX = s; scaleY = s }
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .hud(t.color.copy(alpha = glow), fill = if (pressed) t.color.copy(alpha = 0.10f) else Ns.Panel)
             .clickable(interactionSource = source, indication = null) {
                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)

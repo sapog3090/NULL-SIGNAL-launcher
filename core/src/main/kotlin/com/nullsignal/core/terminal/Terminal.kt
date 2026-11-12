@@ -50,7 +50,7 @@ enum class Module(val id: String, val title: String) {
     FILECHECK("file", "ПРОВЕРКА ФАЙЛА"),
     SPECTRUM("spectrum", "СПЕКТР"),
     DROP("drop", "ТАЙНИК"),
-    LANCHAT("chat", "ЛОКАЛЬНЫЙ ЧАТ"),
+    LANCHAT("chat", "ШИФРОЧАТ"),
     BTREMOTE("bt", "BT-ПУЛЬТ"),
 }
 
@@ -63,6 +63,9 @@ interface TerminalEnv {
     val followers: Int
     val apps: List<String>
     fun now(): String
+
+    /** Проверка ответа на загадку сюжета: null — загадки сейчас нет. */
+    fun answer(text: String): Boolean? = null
 }
 
 sealed interface Action {
@@ -151,6 +154,14 @@ class Terminal(private val env: TerminalEnv) {
                 listOf("отправляю сигнал…", "▂▃▅▇█ канал открыт", "NULL//SIGNAL: мы тебя слышим."),
                 trigger = Trigger.SIGNAL_CMD,
             )
+            "answer", "ответ" -> when {
+                arg.isBlank() -> Output(listOf("использование: answer <ответ на загадку из MESSAGES>"))
+                else -> when (env.answer(arg)) {
+                    null -> Output(listOf("сейчас загадок нет. текущая задача: ${env.objective}"))
+                    true -> Output(listOf("▂▃▅▇█ ответ принят", "ВОРОН: вижу. жди сообщения."), trigger = Trigger.ANSWER)
+                    false -> Output(listOf("✕ не то. проверь расшифровку: morse <точки и тире> или decode"))
+                }
+            }
             "about" -> Output(
                 listOf(
                     "NULL//SIGNAL shell v0.3",
@@ -221,7 +232,7 @@ class Terminal(private val env: TerminalEnv) {
             "file", "filecheck", "checkfile" -> Output(listOf("открываю проверку файла…"), Action.Open(Module.FILECHECK))
             "spectrum", "fft" -> Output(listOf("слушаю эфир…"), Action.Open(Module.SPECTRUM))
             "drop", "share" -> Output(listOf("открываю тайник…"), Action.Open(Module.DROP))
-            "chat", "lan" -> Output(listOf("открываю локальный чат…"), Action.Open(Module.LANCHAT))
+            "chat", "lan", "p2p" -> Output(listOf("открываю шифрочат…"), Action.Open(Module.LANCHAT))
             "bt", "hid", "clicker" -> Output(listOf("включаю Bluetooth-пульт…"), Action.Open(Module.BTREMOTE))
             "ssh" -> Output(listOf("открываю SSH…"), Action.OpenWith(Module.SSH, arg))
             "osint" -> Output(listOf("открываю OSINT…"), Action.OpenWith(Module.OSINT, arg))
@@ -414,6 +425,7 @@ class Terminal(private val env: TerminalEnv) {
             "",
             "утилиты:",
             "  py <код>          Python: py 2**64 · py hex(255) · py x = 5",
+            "  answer <ответ>    ответ на загадку из MESSAGES",
             "  calc <выражение>  base <число>  subnet <ip/маска>",
             "  unix [секунды]  uuid  urlenc / urldec  json <текст>",
             "  rand [a b]  coin  dice",
