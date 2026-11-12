@@ -116,6 +116,7 @@ fun HomeScreen(vm: LauncherViewModel) {
             Tile(Module.TRACES, "СЛЕДЫ", "кто трогал телефон", Ns.Green),
             Tile(Module.NOTIFLOG, "УВЕДОМЛЕНИЯ", "в т.ч. удалённые", Ns.Green),
             Tile(Module.CAMS, "КАМЕРЫ", "скрытые камеры в сети", Ns.Green),
+            Tile(Module.FILECHECK, "ПРОВЕРКА ФАЙЛА", "что внутри на самом деле", Ns.Red),
             Tile(Module.AUDIT, "АУДИТ", "защита телефона", Ns.Green),
         ),
         "сеть" to listOf(
@@ -142,6 +143,7 @@ fun HomeScreen(vm: LauncherViewModel) {
         "крипто и шпионаж" to listOf(
             Tile(Module.SPY, "ШПИОНАЖ", "стего · чернила · морзе", Ns.Green),
             Tile(Module.SONIC, "ЗВУКОВОЙ КАНАЛ", "передача звуком без сети", Ns.Green),
+            Tile(Module.DECODER, "ДЕКОДЕР", "base64 · hex · jwt · авто", Ns.Green),
             Tile(Module.AUTH, "2FA", "одноразовые коды", Ns.Green),
             Tile(Module.TOOLS, "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Green),
         ),

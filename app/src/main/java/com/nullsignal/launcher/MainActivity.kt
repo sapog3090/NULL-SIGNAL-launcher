@@ -101,6 +101,8 @@ class MainActivity : ComponentActivity() {
                         Module.GNSS -> com.nullsignal.launcher.ui.GnssScreen(home)
                         Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home)
                         Module.PYTHON -> com.nullsignal.launcher.ui.PythonScreen(vm, home)
+                        Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home)
+                        Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home)
                     }
                     }
                     AnimatedVisibility(

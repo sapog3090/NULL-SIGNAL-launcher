@@ -109,6 +109,14 @@ fun ModuleIcon(module: Module, color: Color, modifier: Modifier = Modifier, size
             }
             Module.SONIC -> { line(4f, 10f, 4f, 14f); line(8f, 7f, 8f, 17f); line(12f, 4f, 12f, 20f); line(16f, 8f, 16f, 16f); line(20f, 10.5f, 20f, 13.5f) }
             Module.PYTHON -> { path(4f, 8f, 8f, 12f, 4f, 16f); path(10f, 8f, 14f, 12f, 10f, 16f); path(16f, 8f, 20f, 12f, 16f, 16f) }
+            Module.DECODER -> {
+                line(4f, 8f, 20f, 8f); path(16f, 4f, 20f, 8f, 16f, 12f)
+                line(4f, 16f, 20f, 16f); path(8f, 12f, 4f, 16f, 8f, 20f)
+            }
+            Module.FILECHECK -> {
+                path(6f, 3f, 14f, 3f, 18f, 7f, 18f, 21f, 6f, 21f, close = true)
+                path(14f, 3f, 14f, 7f, 18f, 7f); path(9f, 14f, 11f, 16.5f, 15f, 11.5f)
+            }
             Module.HOME -> { path(4f, 11f, 12f, 4f, 20f, 11f); rect(6.5f, 10f, 11f, 10f, 1f) }
         }
     }
