@@ -86,12 +86,12 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- эффекты и игры ----------
 
-    var matrix by mutableStateOf(prefs.getBoolean("matrix", true))
+    var matrix by mutableStateOf(prefs.getBoolean("matrix2", false))
         private set
 
     fun toggleMatrix() {
         matrix = !matrix
-        prefs.edit().putBoolean("matrix", matrix).apply()
+        prefs.edit().putBoolean("matrix2", matrix).apply()
     }
 
     var cipherLevel by mutableStateOf(prefs.getInt("cipher", 0))

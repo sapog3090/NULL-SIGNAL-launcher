@@ -61,6 +61,15 @@ private val BOOT = listOf(
     "оператор опознан",
 )
 
+private val WHISPERS = listOf(
+    "ОНИ ВИДЯТ ВСЁ",
+    "КАЖДОЕ ПРИЛОЖЕНИЕ ЗНАЕТ, ГДЕ ТЫ",
+    "ТВОЙ ТЕЛЕФОН ГОВОРИТ О ТЕБЕ ЗА ТВОЕЙ СПИНОЙ",
+    "КТО-ТО СЕЙЧАС СМОТРИТ",
+    "МЫ ТОЖЕ СМОТРИМ",
+    "НИЧТО НЕ УДАЛЯЕТСЯ НАСОВСЕМ",
+)
+
 private data class Tile(val module: Module, val icon: String, val title: String, val sub: String, val color: Color)
 
 @Composable
@@ -96,26 +105,30 @@ fun HomeScreen(vm: LauncherViewModel) {
 
     val tiles = listOf(
         Tile(Module.TERMINAL, ">_", "ТЕРМИНАЛ", "40+ команд", Ns.Green),
-        Tile(Module.MESSAGES, "✉", "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Amber else Ns.Cyan),
-        Tile(Module.NETSCAN, "⌖", "СКАН СЕТИ", "устройства и порты", Ns.Cyan),
+        Tile(Module.MESSAGES, "✉", "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
+        Tile(Module.NETSCAN, "⌖", "СКАН СЕТИ", "устройства и порты", Ns.Green),
         Tile(Module.MONITOR, "∿", "МОНИТОР", "скорость и пинг", Ns.Green),
-        Tile(Module.WIFI, "≋", "WIFI-РАДАР", "сети вокруг", Ns.Cyan),
-        Tile(Module.BLE, "◎", "BLE-РАДАР", "bluetooth рядом", Ns.Violet),
-        Tile(Module.AUDIT, "⛨", "АУДИТ", "защита телефона", Ns.Amber),
-        Tile(Module.TOOLS, "⚿", "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Violet),
-        Tile(Module.GAMES, "#", "ИГРЫ", "взлом · шифры · код", Ns.Red),
-        Tile(Module.ACADEMY, "λ", "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Green),
+        Tile(Module.WIFI, "≋", "WIFI-РАДАР", "сети вокруг", Ns.Green),
+        Tile(Module.BLE, "◎", "BLE-РАДАР", "bluetooth рядом", Ns.Green),
+        Tile(Module.AUDIT, "⛨", "АУДИТ", "защита телефона", Ns.Green),
+        Tile(Module.TOOLS, "⚿", "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Green),
+        Tile(Module.GAMES, "#", "ТРЕНАЖЁРЫ", "взлом · шифры · код", Ns.Dim),
+        Tile(Module.ACADEMY, "λ", "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Dim),
     )
-
     Box(Modifier.fillMaxSize()) {
-        if (vm.matrix) MatrixRain(Modifier.fillMaxSize(), alpha = 0.16f)
+        if (vm.matrix) MatrixRain(Modifier.fillMaxSize(), alpha = 0.10f)
         LazyColumn(
             Modifier.fillMaxSize().padding(horizontal = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // ---------- часы ----------
             item {
-                Spacer(Modifier.height(10.dp))
+                WatchingEye(Modifier.fillMaxWidth().height(150.dp).padding(top = 6.dp))
+                Text(
+                    WHISPERS[((now.time / 7000) % WHISPERS.size).toInt()],
+                    style = Ns.label.copy(color = Ns.Red.copy(alpha = glowAlpha()), textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                )
                 Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -126,11 +139,11 @@ fun HomeScreen(vm: LauncherViewModel) {
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
                                 SimpleDateFormat("HH:mm", Locale.US).format(now),
-                                style = Ns.title.copy(fontSize = 56.sp, lineHeight = 60.sp, fontWeight = FontWeight.Light, color = Ns.Green, letterSpacing = 0.sp),
+                                style = Ns.title.copy(fontSize = 58.sp, lineHeight = 62.sp, color = Ns.Green, letterSpacing = 0.sp),
                             )
                             Text(
                                 SimpleDateFormat(":ss", Locale.US).format(now),
-                                style = Ns.title.copy(fontSize = 22.sp, color = Ns.Cyan.copy(alpha = glowAlpha())),
+                                style = Ns.title.copy(fontSize = 22.sp, color = Ns.Red),
                                 modifier = Modifier.padding(bottom = 10.dp, start = 2.dp),
                             )
                         }
@@ -150,7 +163,7 @@ fun HomeScreen(vm: LauncherViewModel) {
                         },
                     )
                     Chip(net?.let { "${if (it.onWifi) "WIFI" else "MOB"} ${it.ip}" } ?: "OFFLINE", if (net != null) Ns.Cyan else Ns.Red)
-                    Chip(vm.operator.uppercase(), Ns.Violet)
+                    Chip(vm.operator.uppercase(), Ns.Text2)
                     Chip(
                         if (vm.matrix) "МАТРИЦА ВКЛ" else "МАТРИЦА ВЫКЛ",
                         if (vm.matrix) Ns.Green else Ns.Dim,
@@ -168,19 +181,19 @@ fun HomeScreen(vm: LauncherViewModel) {
             }
             // ---------- оператор ----------
             item {
-                Panel(color = Ns.Violet) {
+                Panel(color = Ns.Dim) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text("РАНГ", style = Ns.label.copy(color = Ns.Violet))
-                            Text(rank.rank.title, style = Ns.title.copy(color = Ns.Violet))
+                            Text("РАНГ", style = Ns.label.copy(color = Ns.Text2))
+                            Text(rank.rank.title, style = Ns.title.copy(color = Ns.Text2))
                         }
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("УЗЛОВ СЕТИ", style = Ns.label.copy(color = Ns.Violet))
+                            Text("УЗЛОВ СЕТИ", style = Ns.label.copy(color = Ns.Text2))
                             Text("${vm.progress.followers}", style = Ns.title.copy(color = Ns.Text2))
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    HudBar(rank.progress, Ns.Violet)
+                    HudBar(rank.progress, Ns.Red)
                     Text(
                         rank.next?.let { "до «${it.title}»: ${it.from - vm.progress.followers}" } ?: "максимальный ранг",
                         style = Ns.small,
@@ -191,15 +204,15 @@ fun HomeScreen(vm: LauncherViewModel) {
             // ---------- задача ----------
             item {
                 Column(
-                    Modifier.fillMaxWidth().hud(Ns.Amber, fill = Ns.Amber.copy(alpha = 0.06f))
+                    Modifier.fillMaxWidth().hud(Ns.Red, fill = Ns.Red.copy(alpha = 0.07f))
                         .clickable { vm.screen = Module.MESSAGES }.padding(12.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        PulseDot(Ns.Amber, 7.dp)
+                        PulseDot(Ns.Red, 7.dp)
                         Spacer(Modifier.width(6.dp))
-                        Text("ТЕКУЩАЯ ЗАДАЧА", style = Ns.label.copy(color = Ns.Amber))
+                        Text("ТЕКУЩАЯ ЗАДАЧА", style = Ns.label.copy(color = Ns.Red))
                     }
-                    Text(vm.engine.current(vm.progress).objective, style = Ns.text.copy(color = Ns.Amber), modifier = Modifier.padding(top = 4.dp))
+                    Text(vm.engine.current(vm.progress).objective, style = Ns.text.copy(color = Ns.Green), modifier = Modifier.padding(top = 4.dp))
                 }
             }
             // ---------- модули ----------
@@ -259,20 +272,16 @@ fun HomeScreen(vm: LauncherViewModel) {
 @Composable
 private fun ModuleTile(t: Tile, modifier: Modifier, onClick: () -> Unit) {
     Column(
-        modifier.height(92.dp).hud(t.color, fill = t.color.copy(alpha = 0.05f)).clickable(onClick = onClick).padding(12.dp),
+        modifier.height(86.dp).hud(t.color.copy(alpha = 0.6f), fill = Ns.Panel).clickable(onClick = onClick).padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Box(
-                Modifier.size(32.dp).clip(Ns.HudSmall)
-                    .background(Brush.linearGradient(listOf(t.color.copy(alpha = 0.3f), t.color.copy(alpha = 0.05f)))),
-                contentAlignment = Alignment.Center,
-            ) { Text(t.icon, style = Ns.title.copy(color = t.color, fontSize = 17.sp, textAlign = TextAlign.Center)) }
+            Text(t.icon, style = Ns.title.copy(color = t.color, fontSize = 18.sp))
             Spacer(Modifier.weight(1f))
-            Text("›", style = Ns.title.copy(color = t.color.copy(alpha = 0.6f)))
+            Box(Modifier.size(6.dp).background(if (t.color == Ns.Red) Ns.Red else Ns.Faint))
         }
         Column {
-            Text(t.title, style = Ns.text.copy(color = t.color, fontWeight = FontWeight.Bold, letterSpacing = 1.sp), maxLines = 1)
+            Text(t.title, style = Ns.title.copy(color = t.color, fontSize = 15.sp, lineHeight = 17.sp), maxLines = 1)
             Text(t.sub, style = Ns.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }

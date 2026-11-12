@@ -194,9 +194,8 @@ fun BleScreen(onBack: () -> Unit) {
 /** Вращающийся радар: точки — устройства, чем ближе к центру, тем сильнее сигнал. */
 @Composable
 private fun Radar(devs: List<BleDev>, modifier: Modifier) {
-    val sweep by rememberInfiniteTransition(label = "radar").animateFloat(
-        0f, 360f, infiniteRepeatable(tween(3000, easing = LinearEasing), RepeatMode.Restart), label = "sweep",
-    )
+    val t by rememberSeconds()
+    val sweep = (t * 120f) % 360f // оборот за 3 секунды, без системных анимаций
     Canvas(modifier) {
         val c = Offset(size.width / 2, size.height / 2)
         val r = size.minDimension / 2
@@ -204,12 +203,12 @@ private fun Radar(devs: List<BleDev>, modifier: Modifier) {
         drawLine(Ns.Faint, Offset(c.x - r, c.y), Offset(c.x + r, c.y))
         drawLine(Ns.Faint, Offset(c.x, c.y - r), Offset(c.x, c.y + r))
         drawArc(
-            Brush.sweepGradient(listOf(Ns.Green.copy(alpha = 0f), Ns.Green.copy(alpha = 0.35f)), c),
+            Brush.sweepGradient(listOf(Ns.Red.copy(alpha = 0f), Ns.Red.copy(alpha = 0.4f)), c),
             startAngle = sweep - 60f, sweepAngle = 60f, useCenter = true,
             topLeft = Offset(c.x - r, c.y - r), size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
         )
         val rad = Math.toRadians(sweep.toDouble())
-        drawLine(Ns.Green, c, Offset(c.x + r * cos(rad).toFloat(), c.y + r * sin(rad).toFloat()), strokeWidth = 2f)
+        drawLine(Ns.Red, c, Offset(c.x + r * cos(rad).toFloat(), c.y + r * sin(rad).toFloat()), strokeWidth = 2f)
         devs.forEach { d ->
             val dist = Tools.distanceMeters(d.rssi).coerceIn(0.3, 30.0)
             val norm = (ln(dist / 0.3) / ln(100.0)).toFloat().coerceIn(0.05f, 1f) // логарифмическая шкала 0.3–30 м

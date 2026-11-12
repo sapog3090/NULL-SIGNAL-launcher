@@ -30,6 +30,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +47,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -55,27 +59,29 @@ import kotlinx.coroutines.delay
 import kotlin.random.Random
 
 object Ns {
-    val Bg = Color(0xFF03060A)
-    val Bg2 = Color(0xFF071318)
-    val Panel = Color(0xCC0A161B)
-    val Green = Color(0xFF39FF88)
-    val Dim = Color(0xFF2E9C68)
-    val Faint = Color(0xFF15412F)
-    val Amber = Color(0xFFFFB547)
-    val Red = Color(0xFFFF4D6D)
-    val Cyan = Color(0xFF2EE6FF)
-    val Violet = Color(0xFFB57BFF)
-    val Text2 = Color(0xFF9FBFB0)
+    // Строгая «жуткая» палитра: чёрный, кость, кровь.
+    val Bg = Color(0xFF000000)
+    val Bg2 = Color(0xFF0A0909)
+    val Panel = Color(0xE60E0D0D)
+    val Green = Color(0xFFE8E4DC)   // основной: цвет кости
+    val Dim = Color(0xFF6F6A66)
+    val Faint = Color(0xFF2A2726)
+    val Amber = Color(0xFFFF6A2B)   // предупреждение
+    val Red = Color(0xFFE5112E)     // кровь — главный акцент
+    val Cyan = Color(0xFFB9B4AE)    // холодный серый для вторичного
+    val Violet = Color(0xFFE5112E)
+    val Text2 = Color(0xFF8E8883)
 
     val Mono = FontFamily.Monospace
     val text = TextStyle(fontFamily = Mono, color = Green, fontSize = 13.sp, lineHeight = 18.sp)
     val small = text.copy(fontSize = 11.sp, lineHeight = 15.sp, color = Text2)
-    val title = text.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold, lineHeight = 22.sp, letterSpacing = 1.sp)
+    val Condensed = FontFamily(android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD))
+    val title = text.copy(fontFamily = Condensed, fontSize = 20.sp, fontWeight = FontWeight.Bold, lineHeight = 24.sp, letterSpacing = 2.sp)
     val label = text.copy(fontSize = 10.sp, lineHeight = 12.sp, color = Dim, letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
 
     /** Скошенный угол — фирменная форма панелей. */
-    val Hud: Shape = CutCornerShape(topStart = 0.dp, topEnd = 12.dp, bottomEnd = 0.dp, bottomStart = 12.dp)
-    val HudSmall: Shape = CutCornerShape(topEnd = 7.dp, bottomStart = 7.dp)
+    val Hud: Shape = RectangleShape
+    val HudSmall: Shape = RectangleShape
     val Pill: Shape = RoundedCornerShape(50)
 }
 
@@ -90,17 +96,15 @@ fun NsTheme(content: @Composable () -> Unit) {
     )
 }
 
-/** Фон: тёмный градиент + сетка + сканлайны. */
+private val GRAIN: List<Offset> = List(1400) { Offset(Random.nextFloat(), Random.nextFloat()) }
+
+/** Фон: чёрный, плёночное зерно, красная виньетка снизу. */
 fun Modifier.cyberBackground(): Modifier = this
-    .background(Brush.verticalGradient(listOf(Ns.Bg, Ns.Bg2, Ns.Bg)))
+    .background(Ns.Bg)
     .drawBehind {
-        val grid = Ns.Green.copy(alpha = 0.035f)
-        val step = 32.dp.toPx()
-        var x = 0f
-        while (x < size.width) { drawLine(grid, Offset(x, 0f), Offset(x, size.height)); x += step }
-        var y = 0f
-        while (y < size.height) { drawLine(grid, Offset(0f, y), Offset(size.width, y)); y += step }
-        drawRect(Brush.radialGradient(listOf(Ns.Cyan.copy(alpha = 0.06f), Color.Transparent), Offset(size.width * 0.8f, 0f), size.width))
+        drawRect(Brush.radialGradient(listOf(Ns.Red.copy(alpha = 0.10f), Color.Transparent), Offset(size.width / 2, size.height * 1.05f), size.width))
+        val dot = Ns.Green.copy(alpha = 0.05f)
+        GRAIN.forEach { drawCircle(dot, 1.1f, Offset(it.x * size.width, it.y * size.height)) }
     }
 
 /** Сканлайны поверх всего экрана, как у старого ЭЛТ-монитора. */
@@ -160,12 +164,25 @@ fun Chip(text: String, color: Color = Ns.Green, modifier: Modifier = Modifier) {
     }
 }
 
-/** Пульсирующая точка «онлайн». */
+/**
+ * Время в секундах от первого кадра. Работает через кадры Compose,
+ * поэтому не замирает, даже если системные анимации выключены (энергосбережение).
+ */
 @Composable
-fun PulseDot(color: Color = Ns.Green, size: Dp = 8.dp) {
-    val a by rememberInfiniteTransition(label = "pulse").animateFloat(
-        0.25f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing), RepeatMode.Reverse), label = "a",
-    )
+fun rememberSeconds(): State<Float> {
+    val t = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        val start = withFrameNanos { it }
+        while (true) withFrameNanos { now -> t.floatValue = (now - start) / 1_000_000_000f }
+    }
+    return t
+}
+
+/** Пульсирующая точка. */
+@Composable
+fun PulseDot(color: Color = Ns.Red, size: Dp = 8.dp) {
+    val t by rememberSeconds()
+    val a = 0.25f + 0.75f * ((kotlin.math.sin(t * 3.5f) + 1f) / 2f)
     Box(Modifier.size(size).alpha(a).clip(Ns.Pill).background(color))
 }
 
@@ -203,7 +220,7 @@ fun GlitchText(text: String, style: TextStyle = Ns.title, modifier: Modifier = M
     }
     Box(modifier) {
         if (glitching) {
-            Text(shown, style = style.copy(color = Ns.Cyan.copy(alpha = 0.7f)), modifier = Modifier.offset(x = (-2).dp))
+            Text(shown, style = style.copy(color = Color.White.copy(alpha = 0.5f)), modifier = Modifier.offset(x = (-2).dp))
             Text(shown, style = style.copy(color = Ns.Red.copy(alpha = 0.7f)), modifier = Modifier.offset(x = 2.dp))
         }
         Text(shown, style = style)
@@ -236,13 +253,13 @@ fun TermButton(
     Box(
         modifier
             .clip(Ns.HudSmall)
-            .background(Brush.verticalGradient(listOf(c.copy(alpha = if (pressed) 0.35f else 0.16f), c.copy(alpha = if (pressed) 0.2f else 0.05f))))
+            .background(if (pressed) c else c.copy(alpha = 0.04f))
             .border(1.dp, c.copy(alpha = if (enabled) 0.8f else 0.4f), Ns.HudSmall)
             .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label.uppercase(), style = Ns.text.copy(color = c, fontWeight = FontWeight.Bold, letterSpacing = 1.sp))
+        Text(label.uppercase(), style = Ns.text.copy(color = if (pressed) Ns.Bg else c, fontWeight = FontWeight.Bold, letterSpacing = 2.sp))
     }
 }
 
@@ -255,17 +272,17 @@ fun ModuleScreen(title: String, onBack: () -> Unit, content: @Composable ColumnS
                 Modifier.size(38.dp).clip(Ns.HudSmall).background(Ns.Green.copy(alpha = 0.08f))
                     .border(1.dp, Ns.Dim, Ns.HudSmall).clickable(onClick = onBack),
                 contentAlignment = Alignment.Center,
-            ) { Text("‹", style = Ns.title.copy(fontSize = 24.sp)) }
+            ) { Text("←", style = Ns.title.copy(fontSize = 18.sp)) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("NULL//SIGNAL", style = Ns.label)
+                Text("NULL//SIGNAL", style = Ns.label.copy(color = Ns.Red))
                 GlitchText(title.uppercase(), style = Ns.title.copy(fontSize = 20.sp))
             }
             PulseDot()
         }
         Box(
             Modifier.padding(top = 10.dp, bottom = 8.dp).fillMaxWidth().height(1.dp)
-                .background(Brush.horizontalGradient(listOf(Ns.Cyan, Ns.Green.copy(alpha = 0.4f), Color.Transparent))),
+                .background(Brush.horizontalGradient(listOf(Ns.Red, Ns.Red.copy(alpha = 0.3f), Color.Transparent))),
         )
         content()
     }
@@ -283,13 +300,11 @@ fun signalBars(dbm: Int): String {
     return "▂▃▅▇".mapIndexed { i, c -> if (i < level) c else '·' }.joinToString("")
 }
 
-/** Лёгкое «дыхание» свечения для акцентов. */
+/** Лёгкое «дыхание» для акцентов. */
 @Composable
 fun glowAlpha(): Float {
-    val a by rememberInfiniteTransition(label = "glow").animateFloat(
-        0.45f, 1f, infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Reverse), label = "g",
-    )
-    return a
+    val t by rememberSeconds()
+    return 0.45f + 0.55f * ((kotlin.math.sin(t * 2f) + 1f) / 2f)
 }
 
 @Suppress("unused")
