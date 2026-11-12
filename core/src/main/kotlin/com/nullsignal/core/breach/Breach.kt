@@ -17,7 +17,7 @@ class Breach(
 
     enum class State { RUNNING, WON, LOST }
 
-    val secret: String = secret?.uppercase() ?: buildString { repeat(length) { append(ALPHABET[random.nextInt(ALPHABET.length)]) } }
+    val secret: String = secret?.uppercase() ?: buildString { repeat(this@Breach.length) { append(ALPHABET[random.nextInt(ALPHABET.length)]) } }
 
     private val _attempts = mutableListOf<Attempt>()
     val attempts: List<Attempt> get() = _attempts
