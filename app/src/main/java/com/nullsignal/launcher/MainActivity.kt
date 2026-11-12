@@ -88,6 +88,8 @@ class MainActivity : ComponentActivity() {
                         Module.TRACES -> com.nullsignal.launcher.ui.TracesScreen(home)
                         Module.NOTIFLOG -> com.nullsignal.launcher.ui.NotifLogScreen(home)
                         Module.OSINT -> com.nullsignal.launcher.ui.OsintScreen(vm, home)
+                        Module.SPY -> com.nullsignal.launcher.ui.SpyScreen(home)
+                        Module.AUTH -> com.nullsignal.launcher.ui.AuthScreen(home)
                         else -> com.nullsignal.launcher.ui.ModuleScreen(screen.title, home) {
                             androidx.compose.material3.Text("модуль собирается…", style = Ns.text)
                         }
