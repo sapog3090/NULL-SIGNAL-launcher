@@ -168,3 +168,21 @@ class PyInputTest {
         assertTrue(slow.run("x = input()\nfor i in range(1000):\n    pass").ok)
     }
 }
+
+class FastScoreTest {
+    @Test fun sameAsReference() {
+        val r = Random(5)
+        val game = Breach(secret = "0000")
+        val s = BreachScript(game, {})
+        repeat(300) {
+            val a = (1..4).map { Breach.ALPHABET[r.nextInt(16)] }.joinToString("")
+            val b = (1..4).map { Breach.ALPHABET[r.nextInt(16)] }.joinToString("")
+            val ref = Breach.score(a, b)
+            assertTrue(s.run("r = score('$a', '${b.lowercase()}')").ok)
+            assertEquals("$a/$b", "(${ref.exact}, ${ref.misplaced})", com.nullsignal.core.py.pyRepr(s.py.get("r")!!))
+        }
+        assertEquals("ValueError", s.run("score('12', '1234')").problem!!.type)
+        assertEquals("ValueError", s.run("score('12G4', '1234')").problem!!.type)
+        assertEquals("TypeError", s.run("score(1234, '1234')").problem!!.type)
+    }
+}

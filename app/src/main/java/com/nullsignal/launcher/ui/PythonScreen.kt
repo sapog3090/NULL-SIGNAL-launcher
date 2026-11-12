@@ -21,6 +21,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,6 +55,34 @@ fun PythonScreen(vm: LauncherViewModel, onBack: () -> Unit) {
     var syntax by remember { mutableStateOf<PyProblem?>(null) }
     var task by remember { mutableStateOf<PracticeTask?>(null) }
     val run = remember { ScriptRun() }
+    // свои скрипты: имя → код, хранятся в настройках приложения
+    val saved = remember { mutableStateListOf<String>().apply { addAll(prefs.getStringSet("names", emptySet())!!.sorted()) } }
+    var saveName by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf<String?>(null) }
+
+    fun store(name: String, text: String) {
+        if (name !in saved) {
+            val all = (saved + name).sorted()
+            saved.clear()
+            saved.addAll(all)
+        }
+        prefs.edit().putString("saved_$name", text).putStringSet("names", saved.toSet()).apply()
+    }
+
+    /** Открыть другой код в редакторе, не потеряв текущий: он уходит в «черновик». */
+    fun replaceCode(text: String) {
+        val current = code.text
+        val known = current.isBlank() || PyExamples.list.any { it.code == current } || saved.any { prefs.getString("saved_$it", null) == current }
+        if (!known) {
+            store("черновик", current)
+            note = "прошлый код сохранён в «черновик»"
+        } else {
+            note = null
+        }
+        code = TextFieldValue(text)
+        run.clear()
+        tab = 0
+    }
 
     LaunchedEffect(Unit) {
         vm.moduleArg = null
@@ -96,10 +125,11 @@ fun PythonScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                         style = Ns.small.copy(color = Ns.Red), maxLines = 3, modifier = Modifier.padding(top = 4.dp),
                     )
                 }
+                note?.let { Text(it, style = Ns.small.copy(color = Ns.Amber), modifier = Modifier.padding(top = 4.dp)) }
                 SymbolBar(code) { code = it }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    TermButton("▶ ЗАПУСТИТЬ", Modifier.weight(1f), color = Ns.Red, enabled = !run.running) { start() }
-                    TermButton("СТЕРЕТЬ", color = Ns.Dim) { code = TextFieldValue(""); run.clear() }
+                    TermButton("▶ ЗАПУСТИТЬ", Modifier.weight(1f), color = Ns.Red, enabled = !run.running) { note = null; start() }
+                    TermButton("СТЕРЕТЬ", color = Ns.Dim) { replaceCode("") }
                 }
             }
             1 -> {
@@ -135,16 +165,42 @@ fun PythonScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                 }
             }
             else -> {
-                Text("Нажми на пример — он откроется в редакторе. Текущий код при этом заменится.", style = Ns.small, modifier = Modifier.padding(bottom = 6.dp))
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    item {
+                        SectionTitle("мои скрипты · ${saved.size}", Ns.Red)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            NsField(saveName, { saveName = it.take(30) }, "имя для текущего кода", Modifier.weight(1f))
+                            Text(
+                                "  СОХРАНИТЬ",
+                                style = Ns.text.copy(color = if (code.text.isBlank()) Ns.Faint else Ns.Red),
+                                modifier = Modifier.clickable(enabled = code.text.isNotBlank()) {
+                                    val name = saveName.trim().ifEmpty { "скрипт ${saved.size + 1}" }
+                                    store(name, code.text)
+                                    saveName = ""
+                                    note = "сохранено: $name"
+                                }.padding(6.dp),
+                            )
+                        }
+                        note?.let { Text(it, style = Ns.small.copy(color = Ns.Amber), modifier = Modifier.padding(top = 4.dp)) }
+                    }
+                    items(saved.toList(), key = { "s:$it" }) { name ->
+                        Row(Modifier.fillMaxWidth().hud(Ns.Faint).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                name, style = Ns.text, maxLines = 1,
+                                modifier = Modifier.weight(1f).clickable { prefs.getString("saved_$name", null)?.let { replaceCode(it) } },
+                            )
+                            Text(
+                                "×", style = Ns.title.copy(color = Ns.Red),
+                                modifier = Modifier.clickable {
+                                    saved.remove(name)
+                                    prefs.edit().remove("saved_$name").putStringSet("names", saved.toSet()).apply()
+                                }.padding(horizontal = 8.dp),
+                            )
+                        }
+                    }
+                    item { SectionTitle("примеры · ${PyExamples.list.size}") }
                     items(PyExamples.list, key = { it.title }) { e ->
-                        Column(
-                            Modifier.fillMaxWidth().hud(Ns.Dim).clickable {
-                                code = TextFieldValue(e.code)
-                                run.clear()
-                                tab = 0
-                            }.padding(10.dp),
-                        ) {
+                        Column(Modifier.fillMaxWidth().hud(Ns.Dim).clickable { replaceCode(e.code) }.padding(10.dp)) {
                             Text(e.title, style = Ns.text)
                             Text(e.about, style = Ns.small)
                         }

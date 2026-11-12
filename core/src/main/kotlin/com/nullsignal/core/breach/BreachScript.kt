@@ -33,14 +33,37 @@ class BreachScript(val game: Breach, out: (String) -> Unit, private val onAttemp
             val key = a.getOrNull(0) as? String
             val attempt = a.getOrNull(1) as? String
             if (key == null || attempt == null) py.fail("TypeError", "score() ждёт два кода в кавычках: score(ключ, попытка)")
-            if (!game.isValid(key) || !game.isValid(attempt)) {
-                py.fail("ValueError", "score(): оба кода должны быть из ${game.length} символов $ALPHABET_HINT")
-            }
-            val s = Breach.score(key.uppercase(), attempt.uppercase())
-            Pair(s.exact, s.misplaced)
+            fastScore(key, attempt) ?: py.fail("ValueError", "score(): оба кода должны быть из ${game.length} символов $ALPHABET_HINT")
         }
         py.def("attempts_left") { game.attemptsLeft }
         py.def("history") { game.attempts.map { Triple(it.guess, it.exact, it.misplaced) } }
+    }
+
+    private val inKey = IntArray(16)
+    private val inAttempt = IntArray(16)
+
+    private fun digit(c: Char): Int = when (c) {
+        in '0'..'9' -> c - '0'
+        in 'A'..'F' -> c - 'A' + 10
+        in 'a'..'f' -> c - 'a' + 10
+        else -> -1
+    }
+
+    /** То же, что Breach.score, но без лишних объектов: решатель вызывает её десятки тысяч раз за ход. */
+    private fun fastScore(key: String, attempt: String): Pair<Int, Int>? {
+        if (key.length != game.length || attempt.length != game.length) return null
+        inKey.fill(0)
+        inAttempt.fill(0)
+        var exact = 0
+        for (i in key.indices) {
+            val a = digit(key[i])
+            val b = digit(attempt[i])
+            if (a < 0 || b < 0) return null
+            if (a == b) exact++ else { inKey[a]++; inAttempt[b]++ }
+        }
+        var misplaced = 0
+        for (j in 0 until 16) misplaced += minOf(inKey[j], inAttempt[j])
+        return Pair(exact, misplaced)
     }
 
     fun run(src: String): PyResult = py.run(src)
