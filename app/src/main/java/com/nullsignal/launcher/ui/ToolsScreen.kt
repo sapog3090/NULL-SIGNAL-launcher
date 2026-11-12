@@ -125,6 +125,17 @@ private fun PasswordTab() {
         Text("энтропия ~${r.entropyBits.toInt()} бит", style = Ns.small)
         Text("перебор на мощной видеокарте: ${PasswordStrength.humanTime(r.crackSeconds)}", style = Ns.text.copy(color = c))
         r.issues.forEach { Text("  - $it", style = Ns.small.copy(color = Ns.Amber)) }
+        val scope = rememberCoroutineScope()
+        var leak by remember(pw) { mutableStateOf<String?>(null) }
+        TermButton("ПРОВЕРИТЬ ПО БАЗЕ УТЕЧЕК", Modifier.fillMaxWidth().padding(top = 8.dp), color = Ns.Red) {
+            leak = "проверяю… (наружу уходят только 5 символов хеша)"
+            scope.launch {
+                leak = runCatching { com.nullsignal.launcher.sys.NetTools.pwnedCount(pw) }
+                    .map { if (it == 0) "✓ в известных утечках не найден" else "⚠ СЛИТ $it раз(а) — не используй этот пароль" }
+                    .getOrElse { "ошибка сети: ${it.message}" }
+            }
+        }
+        leak?.let { Text(it, style = Ns.text.copy(color = if (it.startsWith("✓")) Ns.Green else Ns.Red)) }
     }
     Spacer(Modifier.height(16.dp))
     Text("— генератор —", style = Ns.text.copy(color = Ns.Cyan))

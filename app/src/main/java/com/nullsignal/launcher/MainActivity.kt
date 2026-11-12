@@ -26,6 +26,9 @@ import com.nullsignal.core.terminal.Module
 import com.nullsignal.launcher.ui.AcademyScreen
 import com.nullsignal.launcher.ui.AuditScreen
 import com.nullsignal.launcher.ui.GamesScreen
+import com.nullsignal.launcher.ui.InterceptScreen
+import com.nullsignal.launcher.ui.StalkerScreen
+import com.nullsignal.launcher.ui.ExifScreen
 import com.nullsignal.launcher.ui.MonitorScreen
 import com.nullsignal.launcher.ui.ToolsScreen
 import com.nullsignal.launcher.ui.BleScreen
@@ -77,6 +80,9 @@ class MainActivity : ComponentActivity() {
                         Module.TOOLS -> ToolsScreen(home)
                         Module.MONITOR -> MonitorScreen(home)
                         Module.GAMES -> GamesScreen(vm, home)
+                        Module.INTERCEPT -> InterceptScreen(home)
+                        Module.STALKER -> StalkerScreen(home)
+                        Module.EXIF -> ExifScreen(home)
                     }
                     }
                     AnimatedVisibility(

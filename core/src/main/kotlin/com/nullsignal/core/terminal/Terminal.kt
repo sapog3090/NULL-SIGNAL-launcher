@@ -22,6 +22,9 @@ enum class Module(val id: String, val title: String) {
     TOOLS("tools", "TOOLS"),
     MONITOR("mon", "MONITOR"),
     GAMES("games", "GAMES"),
+    INTERCEPT("dns", "ПЕРЕХВАТ"),
+    STALKER("stalk", "АНТИСЛЕЖКА"),
+    EXIF("exif", "EXIF"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -106,6 +109,9 @@ class Terminal(private val env: TerminalEnv) {
             "audit" -> Output(listOf("запускаю аудит…"), Action.Open(Module.AUDIT))
             "tools", "vault" -> Output(listOf("открываю TOOLS…"), Action.Open(Module.TOOLS))
             "mon", "monitor", "top" -> Output(listOf("открываю монитор сети…"), Action.Open(Module.MONITOR))
+            "dns", "firewall", "sniff" -> Output(listOf("открываю перехватчик…"), Action.Open(Module.INTERCEPT))
+            "stalk", "antispy" -> Output(listOf("ищу слежку…"), Action.Open(Module.STALKER))
+            "exif" -> Output(listOf("открываю EXIF…"), Action.Open(Module.EXIF))
             "games" -> Output(listOf("открываю GAMES…"), Action.Open(Module.GAMES))
             "matrix" -> Output(listOf("wake up, ${env.operator}…"), Action.ToggleMatrix)
             "rot13" -> Output(listOf(Ciphers.rot13(arg)))
@@ -263,12 +269,13 @@ class Terminal(private val env: TerminalEnv) {
             "",
             "крипто:",
             "  pwcheck <пароль>  надёжность пароля",
+            "  pwned <пароль>    был ли пароль в утечках",
             "  encrypt / decrypt <пароль> <текст>  AES-256",
             "  caesar <n> <т> | caesar brute <т>   rot13  atbash  rev",
             "  hex / bin <enc|dec> <текст>   jwt <токен>",
             "  urlcheck <ссылка> проверка на фишинг",
             "",
-            "модули: audit tools mon games learn  ·  matrix",
+            "модули: dns stalk exif audit tools mon games learn  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */
@@ -279,6 +286,7 @@ class Terminal(private val env: TerminalEnv) {
             "nc" to "nc <хост> <порт>",
             "sh" to "sh <команда>",
             "sysinfo" to "",
+            "pwned" to "pwned <пароль>  (наружу уходят только 5 символов хеша)",
             "traceroute" to "traceroute <хост>",
             "dig" to "dig <домен> [A|AAAA|MX|TXT|NS|CNAME]",
             "ssl" to "ssl <домен>",

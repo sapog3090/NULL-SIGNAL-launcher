@@ -174,6 +174,26 @@ object NetTools {
         NetInfo.local(ctx)?.let { out("ip       : ${it.ip}/${it.prefix}  шлюз ${it.gateway}") }
     }
 
+    /** Сколько раз пароль встречался в утечках. Наружу уходят только первые 5 символов SHA-1. */
+    suspend fun pwnedCount(password: String): Int {
+        val (prefix, suffix) = com.nullsignal.core.security.Pwned.split(password)
+        val body = withContext(Dispatchers.IO) {
+            val c = URL("https://api.pwnedpasswords.com/range/$prefix").openConnection() as HttpURLConnection
+            c.connectTimeout = 8000; c.readTimeout = 8000
+            c.setRequestProperty("Add-Padding", "true")
+            c.setRequestProperty("User-Agent", "nullsignal-shell")
+            try { c.inputStream.bufferedReader().readText() } finally { c.disconnect() }
+        }
+        return com.nullsignal.core.security.Pwned.count(body, suffix)
+    }
+
+    suspend fun pwned(password: String, out: suspend (String) -> Unit) {
+        out("отправляю только 5 символов хеша: ${com.nullsignal.core.security.Pwned.split(password).first}…")
+        val n = pwnedCount(password)
+        if (n == 0) out("✓ в известных утечках не найден")
+        else out("⚠ НАЙДЕН В УТЕЧКАХ $n раз(а). Этот пароль подбирают первым — смени его везде.")
+    }
+
     /** Порты одного устройства СВОЕЙ сети (проверка частного адреса — в ядре терминала). */
     suspend fun portscan(ip: String, out: suspend (String) -> Unit) {
         if (!Subnet.isPrivate(ip)) return out("только локальная сеть")

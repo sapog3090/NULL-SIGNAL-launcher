@@ -50,6 +50,7 @@ class Executor(private val ctx: Context) {
                 "myip" -> NetTools.myip(ctx, out)
                 "wifiinfo" -> NetTools.wifiinfo(ctx, out)
                 "portscan" -> NetTools.portscan(cmd.args[0], out)
+                "pwned" -> NetTools.pwned(cmd.rawArgs, out)
                 else -> out("${cmd.command}: не реализовано")
             }
         } catch (e: Exception) {

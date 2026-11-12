@@ -104,7 +104,10 @@ fun HomeScreen(vm: LauncherViewModel) {
     val rank = Ranks.of(vm.progress.followers)
 
     val tiles = listOf(
+        Tile(Module.INTERCEPT, "◉", "ПЕРЕХВАТ", if (com.nullsignal.launcher.sys.DnsMonitor.running) "АКТИВЕН · ${com.nullsignal.launcher.sys.DnsMonitor.total}" else "кто куда стучится", Ns.Red),
+        Tile(Module.STALKER, "⊘", "АНТИСЛЕЖКА", "трекеры · шпионы", Ns.Red),
         Tile(Module.TERMINAL, ">_", "ТЕРМИНАЛ", "40+ команд", Ns.Green),
+        Tile(Module.EXIF, "⌗", "EXIF", "где сделано фото", Ns.Green),
         Tile(Module.MESSAGES, "✉", "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
         Tile(Module.NETSCAN, "⌖", "СКАН СЕТИ", "устройства и порты", Ns.Green),
         Tile(Module.MONITOR, "∿", "МОНИТОР", "скорость и пинг", Ns.Green),

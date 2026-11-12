@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.exifinterface)       // метаданные фото
     implementation(libs.zxing.core)          // генерация QR
     implementation(libs.gms.code.scanner)    // сканер QR без разрешения на камеру
     debugImplementation(libs.compose.ui.tooling)
