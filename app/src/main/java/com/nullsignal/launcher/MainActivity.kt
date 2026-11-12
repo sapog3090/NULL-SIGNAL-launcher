@@ -95,6 +95,11 @@ class MainActivity : ComponentActivity() {
                         Module.NFC -> com.nullsignal.launcher.ui.NfcScreen(home)
                         Module.IR -> com.nullsignal.launcher.ui.IrScreen(home)
                         Module.SSH -> com.nullsignal.launcher.ui.SshScreen(vm, home)
+                        Module.BOARDS -> com.nullsignal.launcher.ui.BoardsScreen(home)
+                        Module.MITM -> com.nullsignal.launcher.ui.MitmScreen(home)
+                        Module.CELLS -> com.nullsignal.launcher.ui.CellsScreen(home)
+                        Module.GNSS -> com.nullsignal.launcher.ui.GnssScreen(home)
+                        Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home)
                     }
                     }
                     AnimatedVisibility(

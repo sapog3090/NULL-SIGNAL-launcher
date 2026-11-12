@@ -64,5 +64,6 @@ dependencies {
     implementation(libs.zxing.core)          // генерация QR
     implementation(libs.gms.code.scanner)    // сканер QR без разрешения на камеру
     implementation(libs.jsch)                // SSH-клиент
+    implementation(libs.usb.serial)          // USB-serial: Arduino, ESP32, Pico
     debugImplementation(libs.compose.ui.tooling)
 }

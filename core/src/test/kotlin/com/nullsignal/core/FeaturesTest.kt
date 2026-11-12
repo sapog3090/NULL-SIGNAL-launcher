@@ -138,7 +138,45 @@ class IrTest {
         assertTrue(s.pattern.isNotEmpty())
         assertEquals(0, s.pattern.size % 2)
         assertTrue(s.pattern.all { it > 0 })
-        assertEquals(5, Ir.ALL_POWER.size)
+        assertEquals(Ir.TV.size, Ir.POWER_SEARCH.size)
+        assertTrue(Ir.TV.size >= 11)
+    }
+
+    @Test fun `rc6 leader and manchester`() {
+        val s = Ir.rc6(0, 0x0C)
+        assertEquals(36000, s.carrierHz)
+        // вспышка 6T, пауза 2T, старт «1» (вспышка T, пауза T) + режим «0» (пауза T…) склеиваются
+        assertEquals(listOf(2664, 888, 444, 888, 444), s.pattern.take(5))
+        assertEquals(0, s.pattern.size % 2)
+        assertTrue(s.pattern.all { it > 0 })
+    }
+
+    @Test fun `sharp two frames`() {
+        val s = Ir.sharp(1, 22)
+        assertEquals(31 + 1 + 31, s.pattern.size)
+        assertEquals(40000, s.pattern[31])
+        // адрес 1 → первый бит 1 → длинная пауза
+        assertEquals(1680, s.pattern[1])
+    }
+
+    /** Разбор шаблона Panasonic обратно в число: 16 бит адреса + 32 бита данных. */
+    @Test fun `panasonic power matches classic code`() {
+        val p = Ir.panasonic(0x3D).pattern
+        assertEquals(3502, p[0])
+        var v = 0L
+        for (i in 0 until 48) v = (v shl 1) or (if (p[3 + i * 2] > 800) 1L else 0L)
+        assertEquals(0x4004L, v ushr 32)
+        assertEquals(0x0100BCBDL, v and 0xFFFFFFFFL)
+        assertEquals(0xBC, Ir.reverse8(0x3D))
+    }
+
+    @Test fun `led strip extended nec`() {
+        val s = Ir.led(Ir.LedKey.ON).pattern
+        // адрес 0xEF00: первый байт 0x00 → восемь коротких пауз
+        for (i in 0 until 8) assertEquals(560, s[3 + i * 2])
+        // второй байт 0xEF, младший бит первым: 1,1,1,1,0,1,1,1
+        assertEquals(listOf(1690, 1690, 1690, 1690, 560, 1690, 1690, 1690), (0 until 8).map { s[19 + it * 2] })
+        assertEquals(24, Ir.LedKey.entries.size)
     }
 }
 

@@ -33,7 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -70,7 +73,7 @@ private val WHISPERS = listOf(
     "НИЧТО НЕ УДАЛЯЕТСЯ НАСОВСЕМ",
 )
 
-private data class Tile(val module: Module, val icon: String, val title: String, val sub: String, val color: Color)
+private data class Tile(val module: Module, val title: String, val sub: String, val color: Color)
 
 @Composable
 fun HomeScreen(vm: LauncherViewModel) {
@@ -106,41 +109,46 @@ fun HomeScreen(vm: LauncherViewModel) {
     val dns = com.nullsignal.launcher.sys.DnsMonitor
     val sections = listOf(
         "слежка и защита" to listOf(
-            Tile(Module.INTERCEPT, "◉", "ПЕРЕХВАТ", if (dns.running) "АКТИВЕН · ${dns.total} · блок ${dns.blocked}" else "кто куда стучится", Ns.Red),
-            Tile(Module.STALKER, "⊘", "АНТИСЛЕЖКА", "метки · шпионы", Ns.Red),
-            Tile(Module.XRAY, "☢", "РЕНТГЕН", "трекеры внутри приложений", Ns.Red),
-            Tile(Module.TRACES, "∷", "СЛЕДЫ", "кто трогал телефон", Ns.Green),
-            Tile(Module.NOTIFLOG, "⚑", "УВЕДОМЛЕНИЯ", "в т.ч. удалённые", Ns.Green),
-            Tile(Module.CAMS, "◍", "КАМЕРЫ", "скрытые камеры в сети", Ns.Green),
-            Tile(Module.AUDIT, "⛨", "АУДИТ", "защита телефона", Ns.Green),
+            Tile(Module.INTERCEPT, "ПЕРЕХВАТ", if (dns.running) "АКТИВЕН · ${dns.total} · блок ${dns.blocked}" else "кто куда стучится", Ns.Red),
+            Tile(Module.MITM, "ПРОСЛУШКА?", "проверка сети на перехват", Ns.Red),
+            Tile(Module.STALKER, "АНТИСЛЕЖКА", "метки · шпионы", Ns.Red),
+            Tile(Module.XRAY, "РЕНТГЕН", "трекеры внутри приложений", Ns.Red),
+            Tile(Module.TRACES, "СЛЕДЫ", "кто трогал телефон", Ns.Green),
+            Tile(Module.NOTIFLOG, "УВЕДОМЛЕНИЯ", "в т.ч. удалённые", Ns.Green),
+            Tile(Module.CAMS, "КАМЕРЫ", "скрытые камеры в сети", Ns.Green),
+            Tile(Module.AUDIT, "АУДИТ", "защита телефона", Ns.Green),
         ),
         "сеть" to listOf(
-            Tile(Module.NETSCAN, "⌖", "СКАН СЕТИ", "кто в моём Wi-Fi", Ns.Green),
-            Tile(Module.MONITOR, "∿", "МОНИТОР", "трафик и пинг", Ns.Green),
-            Tile(Module.SPEED, "»", "СПИДТЕСТ", "скорость интернета", Ns.Green),
-            Tile(Module.TERMINAL, ">_", "ТЕРМИНАЛ", "80+ команд", Ns.Green),
-            Tile(Module.SSH, "$", "SSH", "удалённый доступ", Ns.Green),
+            Tile(Module.NETSCAN, "СКАН СЕТИ", "кто в моём Wi-Fi", Ns.Green),
+            Tile(Module.MONITOR, "МОНИТОР", "трафик и пинг", Ns.Green),
+            Tile(Module.SPEED, "СПИДТЕСТ", "скорость интернета", Ns.Green),
+            Tile(Module.TERMINAL, "ТЕРМИНАЛ", "80+ команд", Ns.Green),
+            Tile(Module.SSH, "SSH", "удалённый доступ", Ns.Green),
         ),
         "разведка" to listOf(
-            Tile(Module.OSINT, "⌕", "OSINT", "ник · почта · IP · домен", Ns.Red),
-            Tile(Module.EXIF, "⌗", "EXIF", "где сделано фото", Ns.Green),
+            Tile(Module.OSINT, "OSINT", "ник · почта · IP · домен", Ns.Red),
+            Tile(Module.EXIF, "EXIF", "место съёмки · фотошоп", Ns.Green),
         ),
         "эфир и железо" to listOf(
-            Tile(Module.WIFI, "≋", "WIFI-РАДАР", "сети и каналы", Ns.Green),
-            Tile(Module.BLE, "◎", "BLE-РАДАР", "bluetooth рядом", Ns.Green),
-            Tile(Module.NFC, "⊡", "NFC", "метки и карты", Ns.Green),
-            Tile(Module.IR, "⇶", "ИК-ПУЛЬТ", "управление ТВ", Ns.Green),
-            Tile(Module.SENSORS, "✱", "ДАТЧИКИ", "магнитометр и всё железо", Ns.Green),
+            Tile(Module.WIFI, "WIFI-РАДАР", "сети · каналы · двойники", Ns.Green),
+            Tile(Module.BLE, "BLE-РАДАР", "bluetooth рядом", Ns.Green),
+            Tile(Module.CELLS, "СОТЫ", "вышки и фальшивые станции", Ns.Red),
+            Tile(Module.GNSS, "СПУТНИКИ", "GPS · ГЛОНАСС · глушилки", Ns.Green),
+            Tile(Module.NFC, "NFC", "метки и карты", Ns.Green),
+            Tile(Module.IR, "ИК-ПУЛЬТ", "ТВ ${com.nullsignal.core.hw.Ir.TV.size} марок · RGB-лента", Ns.Green),
+            Tile(Module.BOARDS, "ПЛАТЫ", "USB · Arduino · ESP32", Ns.Green),
+            Tile(Module.SENSORS, "ДАТЧИКИ", "металлоискатель · компас", Ns.Green),
         ),
         "крипто и шпионаж" to listOf(
-            Tile(Module.SPY, "⧉", "ШПИОНАЖ", "стего · чернила · морзе", Ns.Green),
-            Tile(Module.AUTH, "◷", "2FA", "одноразовые коды", Ns.Green),
-            Tile(Module.TOOLS, "⚿", "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Green),
+            Tile(Module.SPY, "ШПИОНАЖ", "стего · чернила · морзе", Ns.Green),
+            Tile(Module.SONIC, "ЗВУКОВОЙ КАНАЛ", "передача звуком без сети", Ns.Green),
+            Tile(Module.AUTH, "2FA", "одноразовые коды", Ns.Green),
+            Tile(Module.TOOLS, "ИНСТРУМЕНТЫ", "пароли · шифр · QR", Ns.Green),
         ),
         "группа" to listOf(
-            Tile(Module.MESSAGES, "✉", "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
-            Tile(Module.GAMES, "#", "ТРЕНАЖЁРЫ", "взлом · шифры · код", Ns.Dim),
-            Tile(Module.ACADEMY, "λ", "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Dim),
+            Tile(Module.MESSAGES, "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
+            Tile(Module.GAMES, "ТРЕНАЖЁРЫ", "взлом · шифры · код", Ns.Dim),
+            Tile(Module.ACADEMY, "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Dim),
         ),
     )
     Box(Modifier.fillMaxSize()) {
@@ -245,7 +253,7 @@ fun HomeScreen(vm: LauncherViewModel) {
             }
             // ---------- модули по разделам ----------
             sections.forEach { (title, tiles) ->
-                item(key = "section-$title") { SectionTitle(title) }
+                item(key = "section-$title") { SectionTitle("$title · ${tiles.size}") }
                 items(tiles.chunked(2), key = { row -> "tiles-" + row.first().module.id }) { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         row.forEach { t -> ModuleTile(t, Modifier.weight(1f)) { vm.screen = t.module } }
@@ -301,17 +309,24 @@ fun HomeScreen(vm: LauncherViewModel) {
 
 @Composable
 private fun ModuleTile(t: Tile, modifier: Modifier, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
     Column(
-        modifier.height(86.dp).hud(t.color.copy(alpha = 0.6f), fill = Ns.Panel).clickable(onClick = onClick).padding(12.dp),
+        modifier
+            .height(88.dp)
+            .graphicsLayer { val s = if (pressed) 0.97f else 1f; scaleX = s; scaleY = s }
+            .hud(t.color.copy(alpha = if (pressed) 1f else 0.55f), fill = if (pressed) t.color.copy(alpha = 0.10f) else Ns.Panel)
+            .clickable(interactionSource = source, indication = null, onClick = onClick)
+            .padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text(t.icon, style = Ns.title.copy(color = t.color, fontSize = 18.sp))
+            ModuleIcon(t.module, t.color)
             Spacer(Modifier.weight(1f))
-            Box(Modifier.size(6.dp).background(if (t.color == Ns.Red) Ns.Red else Ns.Faint))
+            Box(Modifier.size(5.dp).background(if (t.color == Ns.Red) Ns.Red else Ns.Faint))
         }
         Column {
-            Text(t.title, style = Ns.title.copy(color = t.color, fontSize = 15.sp, lineHeight = 17.sp), maxLines = 1)
+            Text(t.title, style = Ns.title.copy(color = t.color, fontSize = 15.sp, lineHeight = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(t.sub, style = Ns.small, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }

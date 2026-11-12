@@ -42,6 +42,11 @@ enum class Module(val id: String, val title: String) {
     IR("ir", "ИК-ПУЛЬТ"),
     SSH("ssh", "SSH"),
     CAMS("cams", "КАМЕРЫ"),
+    BOARDS("usb", "ПЛАТЫ"),
+    MITM("mitm", "ПРОСЛУШКА?"),
+    CELLS("cells", "СОТЫ"),
+    GNSS("gnss", "СПУТНИКИ"),
+    SONIC("sonic", "ЗВУКОВОЙ КАНАЛ"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -180,6 +185,11 @@ class Terminal(private val env: TerminalEnv) {
             "nfc" -> Output(listOf("жду NFC-метку…"), Action.Open(Module.NFC))
             "ir", "remote" -> Output(listOf("включаю ИК-пульт…"), Action.Open(Module.IR))
             "cams", "cameras" -> Output(listOf("ищу камеры в сети…"), Action.Open(Module.CAMS))
+            "usb", "boards", "serial" -> Output(listOf("открываю USB…"), Action.Open(Module.BOARDS))
+            "mitm" -> Output(listOf("проверяю сеть на перехват…"), Action.Open(Module.MITM))
+            "cells", "towers" -> Output(listOf("слушаю вышки…"), Action.Open(Module.CELLS))
+            "gnss", "gps", "sats" -> Output(listOf("ищу спутники…"), Action.Open(Module.GNSS))
+            "sonic", "modem" -> Output(listOf("открываю звуковой канал…"), Action.Open(Module.SONIC))
             "ssh" -> Output(listOf("открываю SSH…"), Action.OpenWith(Module.SSH, arg))
             "osint" -> Output(listOf("открываю OSINT…"), Action.OpenWith(Module.OSINT, arg))
             "calc", "=" -> calc(arg)
@@ -374,9 +384,9 @@ class Terminal(private val env: TerminalEnv) {
             "  unix [секунды]  uuid  urlenc / urldec  json <текст>",
             "  rand [a b]  coin  dice",
             "",
-            "модули: dns stalk xray traces notif osint spy 2fa cams",
-            "        speed sensors nfc ir ssh exif audit tools mon",
-            "        games learn  ·  matrix",
+            "модули: dns mitm stalk xray traces notif osint spy 2fa cams",
+            "        speed sensors nfc ir ssh usb cells gnss sonic exif",
+            "        audit tools mon games learn  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */

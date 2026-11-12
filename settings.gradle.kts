@@ -10,6 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // только драйверы USB-serial (CH340, CP210x, FTDI, CDC) — их нет в Maven Central
+        maven("https://jitpack.io") { content { includeGroup("com.github.mik3y") } }
     }
 }
 

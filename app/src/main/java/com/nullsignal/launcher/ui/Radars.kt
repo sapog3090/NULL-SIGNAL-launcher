@@ -116,6 +116,15 @@ fun WifiScreen(onBack: () -> Unit) {
         if (open > 0) Text("⚠ небезопасных сетей: $open — не вводи там пароли", style = Ns.small.copy(color = Ns.Red))
         val wps = nets.count { it.wps }
         if (wps > 0) Text("⚠ сетей с WPS: $wps — WPS-PIN подбирается за часы, у себя выключи", style = Ns.small.copy(color = Ns.Amber))
+        val twins = com.nullsignal.core.hw.WifiChannels.twins(nets.map { com.nullsignal.core.hw.WifiChannels.Ap(it.ssid, it.bssid, it.security, it.level) })
+        val twinBssids = twins.flatMap { t -> t.open.map { it.bssid } }.toSet()
+        twins.forEach { t ->
+            AlertRow(
+                2, "ДВОЙНИК: «${t.ssid}»",
+                "Эта сеть есть с паролем (${t.secured.size} точ.) и без пароля (${t.open.joinToString { "${it.bssid}, ${it.level} dBm" }}). " +
+                    "Открытая копия может быть ловушкой — не подключайся к ней и забудь её в настройках, если телефон уже подключался.",
+            )
+        }
         Spacer(Modifier.height(6.dp))
         NsTabs(listOf("СЕТИ", "КАНАЛЫ"), tab, Ns.Red) { tab = it }
         if (tab == 1) {
@@ -125,10 +134,12 @@ fun WifiScreen(onBack: () -> Unit) {
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(nets, key = { it.bssid + it.freq }) { n ->
                 val weak = n.security == "OPEN" || n.security == "WEP"
+                val twin = n.bssid in twinBssids
                 Column(Modifier.fillMaxWidth().hud(if (weak) Ns.Red else Ns.Faint).padding(8.dp)) {
                     Row {
                         Text(signalBars(n.level) + "  ", style = Ns.text.copy(color = Ns.Cyan))
                         Text(n.ssid, style = Ns.text, modifier = Modifier.weight(1f), maxLines = 1)
+                        if (twin) Text("ДВОЙНИК ", style = Ns.text.copy(color = Ns.Red))
                         if (n.wps) Text("WPS ", style = Ns.text.copy(color = Ns.Amber))
                         Text(n.security, style = Ns.text.copy(color = if (weak) Ns.Red else Ns.Green))
                     }

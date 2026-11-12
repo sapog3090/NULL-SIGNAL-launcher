@@ -41,6 +41,27 @@ object WifiChannels {
     fun best24(nets: List<Net>): Int = load24(nets).filter { it.channel in listOf(1, 6, 11) }.minByOrNull { it.score }?.channel ?: 1
 
     fun wps(capabilities: String): Boolean = "WPS" in capabilities.uppercase()
+
+    data class Ap(val ssid: String, val bssid: String, val security: String, val level: Int)
+
+    /** Подозрительный двойник: у сети с паролем есть копия без пароля (или на WEP). */
+    data class Twin(val ssid: String, val secured: List<Ap>, val open: List<Ap>)
+
+    private fun weak(sec: String) = sec == "OPEN" || sec == "WEP"
+
+    /**
+     * «Злой двойник»: точка с тем же именем, что и настоящая сеть, но без пароля — телефон или человек
+     * подключается к ней по привычке, и весь трафик идёт через чужое устройство.
+     * Несколько точек с одним именем и одной защитой — норма (mesh, ретрансляторы), их не трогаем.
+     */
+    fun twins(aps: List<Ap>): List<Twin> = aps
+        .filter { it.ssid.isNotBlank() && !it.ssid.startsWith("<") }
+        .groupBy { it.ssid }
+        .mapNotNull { (ssid, list) ->
+            val open = list.filter { weak(it.security) }
+            val secured = list.filter { !weak(it.security) && it.security != "OWE" }
+            if (open.isNotEmpty() && secured.isNotEmpty()) Twin(ssid, secured, open) else null
+        }
 }
 
 /** Производители Bluetooth-устройств по Company ID (Bluetooth SIG). */
