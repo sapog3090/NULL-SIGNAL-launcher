@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleShare(intent)
         setContent {
             NsTheme {
                 val home = { vm.screen = Module.HOME }
@@ -101,8 +102,8 @@ class MainActivity : ComponentActivity() {
                         Module.GNSS -> com.nullsignal.launcher.ui.GnssScreen(home)
                         Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home)
                         Module.PYTHON -> com.nullsignal.launcher.ui.PythonScreen(vm, home)
-                        Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home)
-                        Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home)
+                        Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home, vm.moduleArg) { vm.moduleArg = null }
+                        Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home, vm.sharedFile) { vm.sharedFile = null }
                         Module.SPECTRUM -> com.nullsignal.launcher.ui.SpectrumScreen(home)
                         Module.DROP -> com.nullsignal.launcher.ui.DropScreen(home)
                         Module.LANCHAT -> com.nullsignal.launcher.ui.LanChatScreen(vm, home)
@@ -137,5 +138,25 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         if (intent.hasCategory(android.content.Intent.CATEGORY_HOME)) vm.screen = Module.HOME
+        handleShare(intent)
+    }
+
+    /** «Поделиться → NULL//SIGNAL» из любого приложения: файл открываем в проверке, текст — в декодере. */
+    private fun handleShare(intent: android.content.Intent?) {
+        if (intent?.action != android.content.Intent.ACTION_SEND) return
+        val uri: android.net.Uri? = if (android.os.Build.VERSION.SDK_INT >= 33) {
+            intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
+        }
+        val text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+        if (uri != null) {
+            vm.sharedFile = uri
+            vm.screen = Module.FILECHECK
+        } else if (!text.isNullOrBlank()) {
+            vm.moduleArg = text
+            vm.screen = Module.DECODER
+        }
     }
 }

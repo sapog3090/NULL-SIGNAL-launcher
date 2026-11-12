@@ -91,6 +91,29 @@ class Terminal(private val env: TerminalEnv) {
 
     fun prompt(): String = "${env.operator}@nullsignal:~$"
 
+    private val pyOut = StringBuilder()
+
+    /** Один интерпретатор на весь сеанс терминала: переменные живут между командами, как в настоящей консоли Python. */
+    private val py by lazy {
+        com.nullsignal.core.py.MiniPy { if (pyOut.length < 8000) pyOut.append(it) }.apply {
+            maxMillis = 3000
+            maxSteps = 3_000_000
+            realSleep = false
+        }
+    }
+
+    private fun python(code: String): Output {
+        pyOut.setLength(0)
+        // выражение печатаем само, как в консоли: py 2**64 → число; команды вроде x = 5 просто выполняем
+        val asExpr = "__v = ($code)\nif __v is not None:\n    print(repr(__v))"
+        val r = py.run(if (com.nullsignal.core.py.MiniPy.syntax(asExpr) == null) asExpr else code)
+        val text = pyOut.toString().trimEnd('\n')
+        val lines = if (text.isEmpty()) ArrayList() else ArrayList(text.lines())
+        r.problem?.let { lines += it.text().lines() }
+        r.halted?.let { lines += "остановлено: $it" }
+        return Output(if (lines.isEmpty()) listOf("ok") else lines)
+    }
+
     fun execute(raw: String): Output {
         val line = raw.trim()
         if (line.isEmpty()) return Output(emptyList())
@@ -196,8 +219,8 @@ class Terminal(private val env: TerminalEnv) {
             "cells", "towers" -> Output(listOf("слушаю вышки…"), Action.Open(Module.CELLS))
             "gnss", "gps", "sats" -> Output(listOf("ищу спутники…"), Action.Open(Module.GNSS))
             "sonic", "modem" -> Output(listOf("открываю звуковой канал…"), Action.Open(Module.SONIC))
-            "py", "python", "python3" -> Output(listOf("запускаю Python…"), Action.Open(Module.PYTHON))
-            "decode", "decoder", "codec" -> Output(listOf("открываю декодер…"), Action.Open(Module.DECODER))
+            "py", "python", "python3" -> if (arg.isEmpty()) Output(listOf("запускаю Python…"), Action.Open(Module.PYTHON)) else python(arg)
+            "decode", "decoder", "codec" -> Output(listOf("открываю декодер…"), if (arg.isEmpty()) Action.Open(Module.DECODER) else Action.OpenWith(Module.DECODER, arg))
             "file", "filecheck", "checkfile" -> Output(listOf("открываю проверку файла…"), Action.Open(Module.FILECHECK))
             "spectrum", "fft" -> Output(listOf("слушаю эфир…"), Action.Open(Module.SPECTRUM))
             "drop", "share" -> Output(listOf("открываю тайник…"), Action.Open(Module.DROP))
@@ -392,6 +415,7 @@ class Terminal(private val env: TerminalEnv) {
             "  ssh [user@host]   SSH-клиент",
             "",
             "утилиты:",
+            "  py <код>          Python: py 2**64 · py hex(255) · py x = 5",
             "  calc <выражение>  base <число>  subnet <ip/маска>",
             "  unix [секунды]  uuid  urlenc / urldec  json <текст>",
             "  rand [a b]  coin  dice",

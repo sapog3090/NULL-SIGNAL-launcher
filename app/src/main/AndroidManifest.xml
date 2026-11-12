@@ -84,6 +84,12 @@
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- «Поделиться → NULL//SIGNAL»: файл уходит на проверку, текст — в декодер -->
+            <intent-filter android:label="Проверить в NULL//SIGNAL">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
         </activity>
         <!-- Журнал уведомлений (доступ выдаётся вручную в настройках) -->
         <service

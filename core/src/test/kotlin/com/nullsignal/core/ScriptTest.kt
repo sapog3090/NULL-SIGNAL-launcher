@@ -121,3 +121,28 @@ class PyExamplesTest {
         assertTrue(out.toString(), out.contains("192.168.1.0") && out.contains("255.255.255.0") && out.contains("254"))
     }
 }
+
+class TerminalPythonTest {
+    private val env = object : com.nullsignal.core.terminal.TerminalEnv {
+        override val operator = "op1"
+        override val device = "test"
+        override val ip: String? = null
+        override val objective = ""
+        override val followers = 0
+        override val apps = emptyList<String>()
+        override fun now() = "now"
+    }
+
+    @Test fun pythonOneLiners() {
+        val t = com.nullsignal.core.terminal.Terminal(env)
+        assertEquals(listOf("1024"), t.execute("py 2 ** 10").lines)
+        assertEquals(listOf("ok"), t.execute("py x = 21").lines)
+        assertEquals(listOf("42"), t.execute("python x * 2").lines)
+        assertEquals(listOf("'0xff'"), t.execute("py hex(255)").lines)
+        assertEquals(listOf("привет"), t.execute("py print(\"привет\")").lines)
+        assertTrue(t.execute("py 1/0").lines.first().contains("ZeroDivisionError"))
+        assertTrue(t.execute("py while True: pass").lines.last().startsWith("остановлено"))
+        assertEquals(com.nullsignal.core.terminal.Action.Open(com.nullsignal.core.terminal.Module.PYTHON), t.execute("py").action)
+        assertEquals(com.nullsignal.core.terminal.Action.Open(com.nullsignal.core.terminal.Module.LANCHAT), t.execute("chat").action)
+    }
+}

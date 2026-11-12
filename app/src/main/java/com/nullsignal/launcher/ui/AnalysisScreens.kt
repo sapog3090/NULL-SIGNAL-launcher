@@ -50,9 +50,16 @@ import java.security.MessageDigest
 // ======================= ДЕКОДЕР =======================
 
 @Composable
-fun DecoderScreen(onBack: () -> Unit) {
+fun DecoderScreen(onBack: () -> Unit, preset: String? = null, onPreset: () -> Unit = {}) {
     val clip = LocalClipboardManager.current
-    var input by remember { mutableStateOf("") }
+    var input by remember { mutableStateOf(preset?.take(200_000) ?: "") }
+    // текст пришёл из терминала (decode …) или через «Поделиться» из другого приложения
+    LaunchedEffect(preset) {
+        if (preset != null) {
+            input = preset.take(200_000)
+            onPreset()
+        }
+    }
     val stack = remember { mutableStateListOf<Pair<String, ByteArray>>() }
     var error by remember { mutableStateOf<String?>(null) }
     var findings by remember { mutableStateOf<List<Codec.Finding>>(emptyList()) }
@@ -210,7 +217,7 @@ private fun displayName(ctx: Context, uri: Uri): String? = runCatching {
 }.getOrNull()
 
 @Composable
-fun FileCheckScreen(onBack: () -> Unit) {
+fun FileCheckScreen(onBack: () -> Unit, shared: Uri? = null, onShared: () -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var report by remember { mutableStateOf<FileCheck.Report?>(null) }
@@ -219,8 +226,7 @@ fun FileCheckScreen(onBack: () -> Unit) {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+    fun check(uri: Uri) {
         busy = true
         error = null
         report = null
@@ -254,6 +260,14 @@ fun FileCheckScreen(onBack: () -> Unit) {
             res.onSuccess { name = it.first; report = it.second; apk = it.third }
                 .onFailure { error = "не удалось прочитать файл: ${it.message ?: it.javaClass.simpleName}" }
             busy = false
+        }
+    }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) check(uri) }
+    // файлом поделились из другого приложения — проверяем сразу
+    LaunchedEffect(shared) {
+        if (shared != null) {
+            onShared()
+            check(shared)
         }
     }
 

@@ -70,6 +70,9 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var screen by mutableStateOf(Module.HOME)
     /** Аргумент для модуля, открытого из терминала (ssh user@host, osint ник). Модуль забирает его сам. */
     var moduleArg by mutableStateOf<String?>(null)
+
+    /** Файл, которым поделились с лаунчером из другого приложения: его ждёт ПРОВЕРКА ФАЙЛА. */
+    var sharedFile by mutableStateOf<android.net.Uri?>(null)
     var notice by mutableStateOf<String?>(null)
         private set
 
