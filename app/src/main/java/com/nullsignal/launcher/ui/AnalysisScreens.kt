@@ -50,7 +50,7 @@ import java.security.MessageDigest
 // ======================= ДЕКОДЕР =======================
 
 @Composable
-fun DecoderScreen(onBack: () -> Unit, preset: String? = null, onPreset: () -> Unit = {}) {
+fun DecoderScreen(onBack: () -> Unit, preset: String? = null, onPreset: () -> Unit = {}, onDecoded: () -> Unit = {}) {
     val clip = LocalClipboardManager.current
     var input by remember { mutableStateOf(preset?.take(200_000) ?: "") }
     // текст пришёл из терминала (decode …) или через «Поделиться» из другого приложения
@@ -74,6 +74,7 @@ fun DecoderScreen(onBack: () -> Unit, preset: String? = null, onPreset: () -> Un
         searching = true
         findings = withContext(Dispatchers.Default) { runCatching { Codec.detect(input) }.getOrDefault(emptyList()) }
         searching = false
+        if (findings.isNotEmpty()) onDecoded()
     }
 
     fun apply(op: Codec.Op) {
@@ -217,7 +218,7 @@ private fun displayName(ctx: Context, uri: Uri): String? = runCatching {
 }.getOrNull()
 
 @Composable
-fun FileCheckScreen(onBack: () -> Unit, shared: Uri? = null, onShared: () -> Unit = {}) {
+fun FileCheckScreen(onBack: () -> Unit, shared: Uri? = null, onShared: () -> Unit = {}, onScanned: () -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var report by remember { mutableStateOf<FileCheck.Report?>(null) }
@@ -257,7 +258,7 @@ fun FileCheckScreen(onBack: () -> Unit, shared: Uri? = null, onShared: () -> Uni
                     }
                 }
             }
-            res.onSuccess { name = it.first; report = it.second; apk = it.third }
+            res.onSuccess { name = it.first; report = it.second; apk = it.third; onScanned() }
                 .onFailure { error = "не удалось прочитать файл: ${it.message ?: it.javaClass.simpleName}" }
             busy = false
         }

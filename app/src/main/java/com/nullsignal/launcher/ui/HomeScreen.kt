@@ -317,12 +317,17 @@ fun HomeScreen(vm: LauncherViewModel) {
 private fun ModuleTile(t: Tile, modifier: Modifier, onClick: () -> Unit) {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val glow by androidx.compose.animation.core.animateFloatAsState(if (pressed) 1f else 0.55f, androidx.compose.animation.core.tween(160), label = "tile")
     Column(
         modifier
             .height(88.dp)
             .graphicsLayer { val s = if (pressed) 0.97f else 1f; scaleX = s; scaleY = s }
-            .hud(t.color.copy(alpha = if (pressed) 1f else 0.55f), fill = if (pressed) t.color.copy(alpha = 0.10f) else Ns.Panel)
-            .clickable(interactionSource = source, indication = null, onClick = onClick)
+            .hud(t.color.copy(alpha = glow), fill = if (pressed) t.color.copy(alpha = 0.10f) else Ns.Panel)
+            .clickable(interactionSource = source, indication = null) {
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {

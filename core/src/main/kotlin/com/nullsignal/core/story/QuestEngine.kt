@@ -22,6 +22,9 @@ class QuestEngine(private val chapters: List<Chapter> = Story.chapters) {
     fun inbox(p: Progress): List<Message> =
         chapters.take(p.chapter.coerceIn(0, chapters.lastIndex) + 1).flatMap { it.messages }
 
+    /** Открытые главы: пройденные и текущая. */
+    fun unlocked(p: Progress): List<Chapter> = chapters.take(p.chapter.coerceIn(0, chapters.lastIndex) + 1)
+
     fun unread(p: Progress): Int = (inbox(p).size - p.readMessages).coerceAtLeast(0)
 
     fun markRead(p: Progress): Progress = p.copy(readMessages = inbox(p).size)

@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,30 +57,103 @@ fun asciiBar(p: Float, width: Int = 24): String {
 
 // ---------------- MESSAGES ----------------
 
+private sealed interface ChatItem {
+    class Msg(val m: com.nullsignal.core.story.Message, val story: Boolean) : ChatItem
+    class Mine(val text: String) : ChatItem
+    class Choice(val chapter: com.nullsignal.core.story.Chapter) : ChatItem
+}
+
+private fun memberColor(m: com.nullsignal.core.story.Member) = when (m) {
+    com.nullsignal.core.story.Member.RAVEN -> Ns.Red
+    com.nullsignal.core.story.Member.KILOBYTE -> Ns.Green
+    com.nullsignal.core.story.Member.JAY -> Ns.Cyan
+    com.nullsignal.core.story.Member.GHOST -> Ns.Amber
+}
+
 @Composable
 fun MessagesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
-    val inbox = vm.engine.inbox(vm.progress)
-    val firstNew = remember { vm.progress.readMessages }
-    val list = rememberLazyListState()
-    LaunchedEffect(inbox.size) {
-        if (inbox.isNotEmpty()) list.animateScrollToItem(inbox.lastIndex)
-        vm.markRead()
+    val chapters = vm.engine.unlocked(vm.progress)
+    val current = chapters.last()
+    val items = buildList<ChatItem> {
+        for (ch in chapters) {
+            ch.messages.forEach { add(ChatItem.Msg(it, true)) }
+            val picked = vm.replies[ch.id]
+            if (picked != null) {
+                ch.replies.getOrNull(picked)?.let { r -> add(ChatItem.Mine(r.text)); r.answer.forEach { add(ChatItem.Msg(it, false)) } }
+            } else if (ch === current && ch.replies.isNotEmpty()) {
+                add(ChatItem.Choice(ch))
+            }
+        }
     }
+    // уже прочитанное показываем сразу, новое — по одному сообщению, как в настоящем чате
+    val firstNew = remember {
+        var seen = 0
+        var idx = items.size
+        for ((i, it) in items.withIndex()) {
+            if (it is ChatItem.Msg && it.story) { if (seen == vm.progress.readMessages) { idx = i; break }; seen++ }
+        }
+        idx
+    }
+    var shown by remember { mutableIntStateOf(firstNew) }
+    var typing by remember { mutableStateOf<com.nullsignal.core.story.Member?>(null) }
+    val list = rememberLazyListState()
+    LaunchedEffect(items.size, shown) {
+        if (shown >= items.size) { typing = null; vm.markRead(); return@LaunchedEffect }
+        val next = items[shown]
+        if (next is ChatItem.Msg) {
+            typing = next.m.from
+            kotlinx.coroutines.delay((450L + next.m.text.length * 22L).coerceAtMost(2600L))
+            typing = null
+            kotlinx.coroutines.delay(120)
+        }
+        shown++
+    }
+    LaunchedEffect(shown, typing) { list.animateScrollToItem(list.layoutInfo.totalItemsCount.coerceAtLeast(1) - 1) }
+
     ModuleScreen("MESSAGES", onBack) {
-        Text("канал: #nullsignal  ·  шифрование: сквозное (ну, в нашей истории)", style = Ns.small)
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(inbox.size) { i ->
-                val m = inbox[i]
-                Column(Modifier.fillMaxWidth().hud(Ns.Faint).padding(8.dp)) {
-                    Text("<${m.from.handle}>", style = Ns.text.copy(color = Ns.Cyan))
-                    if (i >= firstNew) TypewriterText(m.text, charDelayMs = 18) else Text(m.text, style = Ns.text)
+        Text("#nullsignal · ${com.nullsignal.core.story.Member.entries.size} участника · сквозное шифрование", style = Ns.small)
+        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            items(minOf(shown, items.size)) { i ->
+                val prev = items.getOrNull(i - 1)
+                when (val it = items[i]) { // it — элемент чата
+                    is ChatItem.Msg -> {
+                        val c = memberColor(it.m.from)
+                        val sameAuthor = prev is ChatItem.Msg && prev.m.from == it.m.from
+                        Column(Modifier.fillMaxWidth(0.88f).padding(top = if (sameAuthor) 0.dp else 8.dp)) {
+                            if (!sameAuthor) Text(it.m.from.handle, style = Ns.label.copy(color = c))
+                            androidx.compose.foundation.text.selection.SelectionContainer {
+                                Text(
+                                    it.m.text, style = Ns.text,
+                                    modifier = Modifier.background(Ns.Panel)
+                                        .drawBehind { drawRect(c.copy(alpha = 0.7f), size = androidx.compose.ui.geometry.Size(2.dp.toPx(), size.height)) }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                )
+                            }
+                        }
+                    }
+                    is ChatItem.Mine -> Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.End) {
+                        Text("ТЫ", style = Ns.label)
+                        Text(it.text, style = Ns.text.copy(color = Ns.Text2), modifier = Modifier.hud(Ns.Faint).padding(horizontal = 10.dp, vertical = 6.dp))
+                    }
+                    is ChatItem.Choice -> Column(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalAlignment = Alignment.End) {
+                        it.chapter.replies.forEachIndexed { idx, r ->
+                            Text(
+                                "› ${r.text}",
+                                style = Ns.text.copy(color = Ns.Red),
+                                modifier = Modifier.padding(vertical = 3.dp).hud(Ns.Red.copy(alpha = 0.5f)).clickable { vm.reply(it.chapter.id, idx) }.padding(horizontal = 10.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
                 }
+            }
+            typing?.let { m ->
+                item { Text("${m.handle} печатает…", style = Ns.small.copy(color = memberColor(m)), modifier = Modifier.padding(top = 6.dp)) }
             }
         }
         Text(
-            "[ЗАДАЧА] ${vm.engine.current(vm.progress).objective}",
+            "[ЗАДАЧА] ${current.objective}",
             style = Ns.text.copy(color = Ns.Amber),
-            modifier = Modifier.fillMaxWidth().hud(Ns.Amber).padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp).hud(Ns.Amber).padding(8.dp),
         )
     }
 }

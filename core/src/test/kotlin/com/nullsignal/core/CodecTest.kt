@@ -80,3 +80,15 @@ class CodecTest {
         assertArrayEquals(byteArrayOf(-1, 0), Codec.fromHex("ff00"))
     }
 }
+
+class StoryCipherTest {
+    @Test fun insiderMessageDecodes() {
+        val ch = com.nullsignal.core.story.Story.chapters.first { it.id == "insider" }
+        val coded = ch.messages.first { it.from == com.nullsignal.core.story.Member.GHOST }.text
+        val f = Codec.detect(coded).first()
+        assertTrue(f.text, f.text.contains("helix знает про сойку"))
+        assertEquals(listOf("из Base64"), f.steps)
+        val ids = com.nullsignal.core.story.Story.chapters.map { it.id }
+        assertEquals(ids.size, ids.toSet().size)
+    }
+}

@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
                 val home = { vm.screen = Module.HOME }
                 BackHandler(enabled = vm.screen != Module.HOME, onBack = home)
                 Box(Modifier.fillMaxSize().cyberBackground().scanlines().safeDrawingPadding()) {
+                    com.nullsignal.launcher.ui.ScanSweep(Modifier.fillMaxSize())
                     AnimatedContent(
                         targetState = vm.screen,
                         transitionSpec = {
@@ -97,13 +98,13 @@ class MainActivity : ComponentActivity() {
                         Module.IR -> com.nullsignal.launcher.ui.IrScreen(home)
                         Module.SSH -> com.nullsignal.launcher.ui.SshScreen(vm, home)
                         Module.BOARDS -> com.nullsignal.launcher.ui.BoardsScreen(home)
-                        Module.MITM -> com.nullsignal.launcher.ui.MitmScreen(home)
+                        Module.MITM -> com.nullsignal.launcher.ui.MitmScreen(home) { vm.fire(com.nullsignal.core.story.Trigger.MITM_DONE) }
                         Module.CELLS -> com.nullsignal.launcher.ui.CellsScreen(home)
                         Module.GNSS -> com.nullsignal.launcher.ui.GnssScreen(home)
                         Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home)
                         Module.PYTHON -> com.nullsignal.launcher.ui.PythonScreen(vm, home)
-                        Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home, vm.moduleArg) { vm.moduleArg = null }
-                        Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home, vm.sharedFile) { vm.sharedFile = null }
+                        Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home, vm.moduleArg, { vm.moduleArg = null }) { vm.fire(com.nullsignal.core.story.Trigger.DECODED) }
+                        Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home, vm.sharedFile, { vm.sharedFile = null }) { vm.fire(com.nullsignal.core.story.Trigger.FILE_CHECKED) }
                         Module.SPECTRUM -> com.nullsignal.launcher.ui.SpectrumScreen(home)
                         Module.DROP -> com.nullsignal.launcher.ui.DropScreen(home)
                         Module.LANCHAT -> com.nullsignal.launcher.ui.LanChatScreen(vm, home)

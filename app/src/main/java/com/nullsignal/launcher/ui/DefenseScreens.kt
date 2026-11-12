@@ -275,7 +275,7 @@ private suspend fun checkMicCam(ctx: Context): List<Mitm.Finding> {
 }
 
 @Composable
-fun MitmScreen(onBack: () -> Unit) {
+fun MitmScreen(onBack: () -> Unit, onDone: () -> Unit = {}) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val findings = remember { mutableStateListOf<Mitm.Finding>() }
@@ -303,6 +303,7 @@ fun MitmScreen(onBack: () -> Unit) {
             stage = "микрофон и камера"; step = checks.size
             findings += runCatching { checkMicCam(ctx) }.getOrDefault(emptyList())
             stage = null
+            onDone()
         }
     }
     LaunchedEffect(Unit) { run() }

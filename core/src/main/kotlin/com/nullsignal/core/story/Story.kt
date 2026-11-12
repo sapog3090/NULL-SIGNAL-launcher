@@ -12,6 +12,9 @@ enum class Trigger {
     NODES_WON,       // собрал сеть в «Узлах»
     PY_TASKS,        // решил три задачи в PYTHON
     BREACH_SCRIPT,   // подобрал ключ в BREACH своим скриптом
+    FILE_CHECKED,    // проверил файл в ПРОВЕРКЕ ФАЙЛА
+    DECODED,         // раскодировал сообщение в ДЕКОДЕРЕ
+    MITM_DONE,       // проверил свою сеть в ПРОСЛУШКА?
 }
 
 /** Участник группировки NULL//SIGNAL. */
@@ -19,9 +22,13 @@ enum class Member(val handle: String) {
     RAVEN("ВОРОН"),
     KILOBYTE("КИЛОБАЙТ"),
     JAY("СОЙКА"),
+    GHOST("ТИХИЙ"),
 }
 
 data class Message(val from: Member, val text: String)
+
+/** Вариант ответа игрока и что ему на это скажут. */
+data class Reply(val text: String, val answer: List<Message>)
 
 data class Chapter(
     val id: String,
@@ -32,6 +39,8 @@ data class Chapter(
     val trigger: Trigger?,
     /** Сколько «узлов сети» (подписчиков) даёт выполнение. */
     val reward: Int,
+    /** Что игрок может ответить в чате (необязательно). */
+    val replies: List<Reply> = emptyList(),
 )
 
 /**
@@ -50,6 +59,10 @@ object Story {
             objective = "Открой TERMINAL и введи whoami",
             trigger = Trigger.WHOAMI,
             reward = 12,
+            replies = listOf(
+                Reply("кто вы такие?", listOf(Message(Member.RAVEN, "Те, кому не нравится, что за городом следят без спроса."), Message(Member.RAVEN, "Остальное потом. Терминал, whoami."))),
+                Reply("это розыгрыш?", listOf(Message(Member.RAVEN, "Розыгрыши не попадают в лаунчер сами."), Message(Member.RAVEN, "whoami. Жду."))),
+            ),
         ),
         Chapter(
             id = "recon",
@@ -71,6 +84,10 @@ object Story {
                 Message(Member.JAY, "Включи АНАЛИЗАТОР — он покажет, какие символы ещё возможны. А на вкладке СКРИПТОМ лежит готовый решатель на Python: запусти и посмотри, как он думает."),
             ),
             objective = "Пройди тренировочный взлом в BREACH",
+            replies = listOf(
+                Reply("а это вообще законно?", listOf(Message(Member.JAY, "Тренажёр — да. Чужие системы — нет."), Message(Member.JAY, "Мы трогаем только своё и то, на что нам дали разрешение. Это не обсуждается."))),
+                Reply("сделаю", listOf(Message(Member.JAY, "Включи анализатор. Угадывать — не наш метод."))),
+            ),
             trigger = Trigger.BREACH_WON,
             reward = 120,
         ),
@@ -148,10 +165,67 @@ object Story {
             reward = 300,
         ),
         Chapter(
+            id = "phish",
+            messages = listOf(
+                Message(Member.KILOBYTE, "так"),
+                Message(Member.KILOBYTE, "мне в почту пришло «предложение о сотрудничестве»"),
+                Message(Member.KILOBYTE, "вложение: Отчёт_Helix_утечка.pdf"),
+                Message(Member.KILOBYTE, "выглядит как пдф. весит 4 мегабайта. пдф на 4 мегабайта от незнакомца, ага"),
+                Message(Member.JAY, "Не открывай."),
+                Message(Member.JAY, "Оператор, у тебя есть ПРОВЕРКА ФАЙЛА. Проверь любой файл с телефона — посмотри, что она показывает. Потом Килобайт перешлёт свой."),
+            ),
+            objective = "Проверь любой файл: ПРОВЕРКА ФАЙЛА",
+            trigger = Trigger.FILE_CHECKED,
+            reward = 150,
+            replies = listOf(
+                Reply("а если просто открыть?", listOf(Message(Member.JAY, "Если внутри программа под видом PDF — она получит всё, что ей разрешит телефон."), Message(Member.KILOBYTE, "я как-то открыл «фото». потом месяц менял пароли)"))),
+                Reply("проверю", listOf(Message(Member.KILOBYTE, "вот это правильный ответ"))),
+            ),
+        ),
+        Chapter(
+            id = "insider",
+            messages = listOf(
+                Message(Member.KILOBYTE, "проверил. это был не пдф, а установщик. классика"),
+                Message(Member.RAVEN, "Значит, они знают наши адреса. Это плохо."),
+                Message(Member.RAVEN, "И есть вторая новость. Нам написал кто-то изнутри Helix."),
+                Message(Member.GHOST, "0LLRgdGC0YDQtdGH0LAg0L7RgtC80LXQvdC10L3QsC4gaGVsaXgg0LfQvdCw0LXRgiDQv9GA0L4g0YHQvtC50LrRgy4g0LfQsNCy0YLRgNCwINCyIDIxOjAwINC/0YDQvtCy0LXRgNGM0YLQtSDQv9C+0YfRgtGDINC60YPRgNGM0LXRgNCw"),
+                Message(Member.KILOBYTE, "это даже не шифр. это обёртка"),
+                Message(Member.RAVEN, "Оператор, разверни. Зажми сообщение, скопируй и вставь в ДЕКОДЕР — он сам поймёт, что это."),
+            ),
+            objective = "Раскодируй сообщение Тихого: ДЕКОДЕР",
+            trigger = Trigger.DECODED,
+            reward = 200,
+            replies = listOf(
+                Reply("а если это ловушка?", listOf(Message(Member.RAVEN, "Может быть. Поэтому мы ничего у него не запускаем и никуда не переходим. Только читаем."))),
+                Reply("кто такой Тихий?", listOf(Message(Member.JAY, "Не знаем. Пишет с одноразовых адресов, ни разу не повторился."), Message(Member.JAY, "Либо очень осторожный, либо очень хорошо играет."))),
+            ),
+        ),
+        Chapter(
+            id = "wire",
+            messages = listOf(
+                Message(Member.JAY, "Он знает про меня. Значит, где-то утечка."),
+                Message(Member.KILOBYTE, "кажется я знаю где"),
+                Message(Member.KILOBYTE, "вчера браузер ругался на сертификат гугла. ГУГЛА"),
+                Message(Member.KILOBYTE, "я нажал «всё равно продолжить». знаю. не надо"),
+                Message(Member.JAY, "Чужой сертификат на крупном сайте — это кто-то посередине. Прокси, роутер, «защитник» — неважно."),
+                Message(Member.JAY, "Оператор, проверь свою сеть в ПРОСЛУШКА?. Если у тебя чисто, значит, взяли только его."),
+            ),
+            objective = "Проверь свою сеть: ПРОСЛУШКА?",
+            trigger = Trigger.MITM_DONE,
+            reward = 200,
+            replies = listOf(
+                Reply("может, просто глюк?", listOf(Message(Member.JAY, "Глюки не подписывают сертификаты чужим именем."))),
+                Reply("Килобайт, смени пароль от роутера", listOf(Message(Member.KILOBYTE, "уже. и WPS выключил. и прошивку обновил"), Message(Member.KILOBYTE, "и стыдно мне тоже уже"))),
+            ),
+        ),
+        Chapter(
             id = "tbc",
             messages = listOf(
-                Message(Member.JAY, "Отчёт ушёл. Утром это будет на всех новостных сайтах."),
-                Message(Member.RAVEN, "Хорошая работа, оператор. Но Helix так просто не сдастся. Держи телефон рядом."),
+                Message(Member.RAVEN, "Итак. Сеть Килобайта чистим, адреса меняем."),
+                Message(Member.GHOST, "вы быстро учитесь"),
+                Message(Member.GHOST, "они переходят на новый протокол. ищите меня в эфире. не в сети — в эфире"),
+                Message(Member.KILOBYTE, "в смысле в эфире. радио?"),
+                Message(Member.JAY, "Или звук. Оператор, держи телефон рядом."),
             ),
             objective = "Ждать сигнала… (продолжение следует)",
             trigger = null,

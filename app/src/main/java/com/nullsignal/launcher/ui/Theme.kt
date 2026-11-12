@@ -1,5 +1,8 @@
 package com.nullsignal.launcher.ui
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -189,9 +192,10 @@ fun PulseDot(color: Color = Ns.Red, size: Dp = 8.dp) {
 /** Полоса прогресса в HUD-стиле. */
 @Composable
 fun HudBar(progress: Float, color: Color = Ns.Green, modifier: Modifier = Modifier, height: Dp = 6.dp) {
+    val p by animateFloatAsState(progress.coerceIn(0f, 1f), tween(420), label = "bar")
     Box(modifier.fillMaxWidth().height(height).clip(Ns.HudSmall).background(color.copy(alpha = 0.12f))) {
         Box(
-            Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(height)
+            Modifier.fillMaxWidth(p).height(height)
                 .background(Brush.horizontalGradient(listOf(color.copy(alpha = 0.6f), color))),
         )
     }
@@ -250,12 +254,16 @@ fun TermButton(
     val c = if (enabled) color else Ns.Faint
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val haptic = LocalHapticFeedback.current
     Box(
         modifier
             .clip(Ns.HudSmall)
             .background(if (pressed) c else c.copy(alpha = 0.04f))
             .border(1.dp, c.copy(alpha = if (enabled) 0.8f else 0.4f), Ns.HudSmall)
-            .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
+            .clickable(interactionSource = source, indication = null, enabled = enabled) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -275,7 +283,7 @@ fun ModuleScreen(title: String, onBack: () -> Unit, content: @Composable ColumnS
             ) { Text("←", style = Ns.title.copy(fontSize = 18.sp)) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("NULL//SIGNAL", style = Ns.label.copy(color = Ns.Red))
+                BlinkLabel("NULL//SIGNAL")
                 GlitchText(title.uppercase(), style = Ns.title.copy(fontSize = 20.sp))
             }
             PulseDot()
@@ -286,6 +294,34 @@ fun ModuleScreen(title: String, onBack: () -> Unit, content: @Composable ColumnS
         )
         content()
     }
+}
+
+/**
+ * Развёртка: едва заметная светлая полоса медленно проходит экран сверху вниз, как луч старого монитора.
+ * На глаз её почти не видно, но экран перестаёт быть «плоским».
+ */
+@Composable
+fun ScanSweep(modifier: Modifier = Modifier) {
+    val time = rememberSeconds()
+    Box(
+        modifier.drawBehind {
+            val t = time.value // читаем в отрисовке: перерисовка без перекомпоновки экрана
+            val period = 9f
+            val y = ((t % period) / period) * (size.height + 240f) - 120f
+            drawRect(
+                Brush.verticalGradient(listOf(Color.Transparent, Ns.Green.copy(alpha = 0.025f), Color.Transparent), startY = y - 120f, endY = y + 120f),
+                topLeft = Offset(0f, y - 120f), size = androidx.compose.ui.geometry.Size(size.width, 240f),
+            )
+            drawLine(Ns.Green.copy(alpha = 0.035f), Offset(0f, y), Offset(size.width, y), 1f)
+        },
+    )
+}
+
+/** Подпись с мигающим курсором; своя функция — чтобы мигание не перерисовывало весь экран. */
+@Composable
+private fun BlinkLabel(text: String) {
+    val t by rememberSeconds()
+    Text(text + if ((t * 1.6f).toInt() % 2 == 0) "_" else " ", style = Ns.label.copy(color = Ns.Red))
 }
 
 /** Полоска силы сигнала из блоков: ▂▃▅▇ */
@@ -303,13 +339,14 @@ fun signalBars(dbm: Int): String {
 /** Вкладки модуля в общем стиле. */
 @Composable
 fun NsTabs(titles: List<String>, selected: Int, accent: Color = Ns.Green, onSelect: (Int) -> Unit) {
+    val haptic = LocalHapticFeedback.current
     Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
         titles.forEachIndexed { i, t ->
             Text(
                 t,
                 style = Ns.small.copy(color = if (i == selected) Ns.Bg else Ns.Green, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
                 maxLines = 1,
-                modifier = Modifier.weight(1f).background(if (i == selected) accent else Ns.Panel).clickable { onSelect(i) }.padding(vertical = 9.dp),
+                modifier = Modifier.weight(1f).background(if (i == selected) accent else Ns.Panel).clickable { if (i != selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onSelect(i) }.padding(vertical = 9.dp),
             )
         }
     }

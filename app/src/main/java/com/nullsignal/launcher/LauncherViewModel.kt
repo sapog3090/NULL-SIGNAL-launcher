@@ -96,6 +96,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
 
     fun markRead() = save(engine.markRead(progress))
 
+    /** Ответы игрока в чате: id главы → номер выбранного варианта. */
+    var replies by mutableStateOf(
+        prefs.getStringSet("replies", emptySet())!!.mapNotNull { e -> e.substringAfterLast(':').toIntOrNull()?.let { e.substringBeforeLast(':') to it } }.toMap(),
+    )
+        private set
+
+    fun reply(chapterId: String, index: Int) {
+        if (chapterId in replies) return
+        replies = replies + (chapterId to index)
+        prefs.edit().putStringSet("replies", replies.map { "${it.key}:${it.value}" }.toSet()).apply()
+    }
+
     // ---------- эффекты и игры ----------
 
     var matrix by mutableStateOf(prefs.getBoolean("matrix2", false))

@@ -48,9 +48,12 @@ fun IrScreen(onBack: () -> Unit) {
     val ir = remember { ctx.getSystemService(Context.CONSUMER_IR_SERVICE) as? ConsumerIrManager }
     val has = remember { runCatching { ir?.hasIrEmitter() == true }.getOrDefault(false) }
     // 0..TV.size-1 — телевизоры, TV.size — RGB-лента
-    var device by remember { mutableIntStateOf(prefs.getInt("device", 0).coerceIn(0, Ir.TV.size)) }
+    var device by remember { mutableIntStateOf(prefs.getInt("device", 0).coerceIn(0, Ir.TV.size + 64)) }
     var status by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf(false) }
+    var importing by remember { mutableStateOf(false) }
+    // свои пульты: имя → текст файла .ir или код Pronto
+    var custom by remember { mutableStateOf(prefs.getStringSet("custom", emptySet())!!.sorted()) }
 
     fun send(name: String, s: Ir.Signal) {
         val m = ir ?: return
@@ -71,6 +74,18 @@ fun IrScreen(onBack: () -> Unit) {
             )
             return@ModuleScreen
         }
+        if (importing) {
+            ImportRemote(
+                onSave = { name, text ->
+                    prefs.edit().putString("custom_$name", text).putStringSet("custom", (custom + name).toSet()).apply()
+                    custom = (custom + name).distinct().sorted()
+                    importing = false
+                    choose(Ir.TV.size + 1 + custom.indexOf(name))
+                },
+                onCancel = { importing = false },
+            )
+            return@ModuleScreen
+        }
         if (search) {
             PowerSearch(onSend = { name, s -> send(name, s) }, onFound = { i -> choose(i); search = false }, onCancel = { search = false })
             return@ModuleScreen
@@ -81,9 +96,29 @@ fun IrScreen(onBack: () -> Unit) {
                 Chip(b.name, if (i == device) Ns.Red else Ns.Dim, Modifier.clickable { choose(i) })
             }
             Chip("RGB-ЛЕНТА", if (device == Ir.TV.size) Ns.Red else Ns.Dim, Modifier.clickable { choose(Ir.TV.size) })
+            custom.forEachIndexed { i, n -> Chip(n, if (device == Ir.TV.size + 1 + i) Ns.Red else Ns.Dim, Modifier.clickable { choose(Ir.TV.size + 1 + i) }) }
+            Chip("+ СВОЙ ПУЛЬТ", Ns.Green, Modifier.clickable { importing = true })
         }
         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
-            if (device == Ir.TV.size) {
+            val customName = custom.getOrNull(device - Ir.TV.size - 1)
+            if (device > Ir.TV.size && customName != null) {
+                val r = remember(customName) { com.nullsignal.core.hw.IrImport.any(prefs.getString("custom_$customName", "").orEmpty(), customName) }
+                Text("$customName · кнопок ${r.buttons.size}", style = Ns.small)
+                r.buttons.chunked(3).forEach { row ->
+                    Row(Modifier.padding(vertical = 3.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        row.forEach { b -> TermButton(b.name.replace('_', ' ').take(14), Modifier.weight(1f)) { send("$customName ${b.name}", b.signal) } }
+                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+                Text(
+                    "[удалить этот пульт]", style = Ns.small.copy(color = Ns.Red),
+                    modifier = Modifier.clickable {
+                        prefs.edit().remove("custom_$customName").putStringSet("custom", (custom - customName).toSet()).apply()
+                        custom = custom - customName
+                        choose(0)
+                    }.padding(vertical = 8.dp),
+                )
+            } else if (device == Ir.TV.size) {
                 LedRemote { k -> send("лента: ${k.title.ifEmpty { "цвет" }}", Ir.led(k)) }
             } else {
                 val b = Ir.TV[device]
@@ -221,5 +256,40 @@ private fun LedRemote(send: (Ir.LedKey) -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** Свой пульт: вставь файл .ir из базы Flipper-IRDB или код Pronto из инструкции. */
+@Composable
+private fun ColumnScope.ImportRemote(onSave: (String, String) -> Unit, onCancel: () -> Unit) {
+    val ctx = LocalContext.current
+    var name by remember { mutableStateOf("") }
+    var text by remember { mutableStateOf("") }
+    val parsed = remember(text) { if (text.isBlank()) null else com.nullsignal.core.hw.IrImport.any(text) }
+    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Text(
+            "Для Яндекс ТВ, интерактивных панелей (NexTouch и других), проекторов, кондиционеров — любой техники с ИК-пультом. " +
+                "Найди файл своей модели в открытой базе Flipper-IRDB, открой его, скопируй текст целиком и вставь сюда. Подойдёт и код Pronto Hex из инструкции или с форума.",
+            style = Ns.small,
+        )
+        Text(
+            "[открыть базу Flipper-IRDB →]", style = Ns.text.copy(color = Ns.Red),
+            modifier = Modifier.clickable { ctx.openUrl("https://github.com/Lucaslhm/Flipper-IRDB") }.padding(vertical = 8.dp),
+        )
+        SectionTitle("название")
+        NsField(name, { name = it.take(20) }, "например: Яндекс ТВ или Доска 214")
+        SectionTitle("коды")
+        NsField(text, { text = it.take(200_000) }, "name: Power\ntype: parsed\nprotocol: NEC …", Modifier.height(160.dp), singleLine = false)
+        parsed?.let { r ->
+            Text(
+                if (r.buttons.isEmpty()) "кнопок не нашёл" else "кнопок: ${r.buttons.size} — " + r.buttons.take(8).joinToString { it.name },
+                style = Ns.small.copy(color = if (r.buttons.isEmpty()) Ns.Red else Ns.Green), modifier = Modifier.padding(top = 6.dp),
+            )
+            if (r.skipped.isNotEmpty()) Text("пропущено (протокол не поддерживается): " + r.skipped.take(5).joinToString(), style = Ns.small.copy(color = Ns.Amber))
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        TermButton("ОТМЕНА", Modifier.weight(1f), color = Ns.Dim, onClick = onCancel)
+        TermButton("СОХРАНИТЬ", Modifier.weight(1f), color = Ns.Red, enabled = name.isNotBlank() && parsed?.buttons?.isNotEmpty() == true) { onSave(name.trim(), text) }
     }
 }

@@ -45,6 +45,9 @@ object Ir {
         return Signal(38000, pulseDistance(intArrayOf(9000, 4500), addrBytes + listOf(command and 0xFF, command.inv() and 0xFF)))
     }
 
+    /** NEC с готовыми байтами кадра (как их хранит Flipper для NECext). */
+    fun necBytes(bytes: List<Int>): Signal = Signal(38000, pulseDistance(intArrayOf(9000, 4500), bytes.map { it and 0xFF }))
+
     /** Samsung32: как NEC, но заголовок 4.5/4.5 мс и адрес повторяется без инверсии. */
     fun samsung(address: Int, command: Int): Signal =
         Signal(38000, pulseDistance(intArrayOf(4500, 4500), listOf(address and 0xFF, address and 0xFF, command and 0xFF, command.inv() and 0xFF)))
