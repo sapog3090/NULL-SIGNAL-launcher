@@ -9,7 +9,7 @@ import kotlin.random.Random
  */
 class Breach(
     val length: Int = 4,
-    val maxAttempts: Int = 8,
+    val maxAttempts: Int = 10,
     random: Random = Random.Default,
     secret: String? = null,
 ) {
@@ -45,6 +45,48 @@ class Breach(
     }
 
     fun isValid(input: String): Boolean = input.length == length && input.uppercase().all { it in ALPHABET }
+
+    /** Что уже известно: сколько ключей ещё подходит под все ответы и какие символы возможны на каждом месте. */
+    class Analysis(val remaining: Int, val byPosition: List<Set<Char>>, val impossible: Set<Char>)
+
+    /** Перебирает все ключи и оставляет те, что не противоречат ни одной попытке. null — ключ слишком длинный. */
+    fun analyze(): Analysis? {
+        if (length > 5) return null
+        val n = ALPHABET.length
+        var total = 1
+        repeat(length) { total *= n }
+        val done = _attempts.toList() // снимок: считаем в фоне, пока игрок может сделать новый ход
+        val guesses = done.map { a -> IntArray(length) { ALPHABET.indexOf(a.guess[it]) } }
+        val seen = Array(length) { BooleanArray(n) }
+        val cand = IntArray(length)
+        val cs = IntArray(n)
+        val cg = IntArray(n)
+        var remaining = 0
+        for (code in 0 until total) {
+            var x = code
+            for (i in length - 1 downTo 0) { cand[i] = x % n; x /= n }
+            var ok = true
+            for (k in guesses.indices) {
+                val g = guesses[k]
+                var e = 0
+                cs.fill(0)
+                cg.fill(0)
+                for (i in 0 until length) {
+                    if (cand[i] == g[i]) e++ else { cs[cand[i]]++; cg[g[i]]++ }
+                }
+                if (e != done[k].exact) { ok = false; break }
+                var m = 0
+                for (j in 0 until n) m += minOf(cs[j], cg[j])
+                if (m != done[k].misplaced) { ok = false; break }
+            }
+            if (ok) {
+                remaining++
+                for (i in 0 until length) seen[i][cand[i]] = true
+            }
+        }
+        val byPos = seen.map { row -> ALPHABET.filterIndexed { j, _ -> row[j] }.toSet() }
+        return Analysis(remaining, byPos, ALPHABET.toSet() - byPos.flatten().toSet())
+    }
 
     companion object {
         const val ALPHABET = "0123456789ABCDEF"

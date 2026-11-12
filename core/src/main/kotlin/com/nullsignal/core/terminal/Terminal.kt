@@ -47,6 +47,7 @@ enum class Module(val id: String, val title: String) {
     CELLS("cells", "СОТЫ"),
     GNSS("gnss", "СПУТНИКИ"),
     SONIC("sonic", "ЗВУКОВОЙ КАНАЛ"),
+    PYTHON("py", "PYTHON"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -190,6 +191,7 @@ class Terminal(private val env: TerminalEnv) {
             "cells", "towers" -> Output(listOf("слушаю вышки…"), Action.Open(Module.CELLS))
             "gnss", "gps", "sats" -> Output(listOf("ищу спутники…"), Action.Open(Module.GNSS))
             "sonic", "modem" -> Output(listOf("открываю звуковой канал…"), Action.Open(Module.SONIC))
+            "py", "python", "python3" -> Output(listOf("запускаю Python…"), Action.Open(Module.PYTHON))
             "ssh" -> Output(listOf("открываю SSH…"), Action.OpenWith(Module.SSH, arg))
             "osint" -> Output(listOf("открываю OSINT…"), Action.OpenWith(Module.OSINT, arg))
             "calc", "=" -> calc(arg)
@@ -386,7 +388,7 @@ class Terminal(private val env: TerminalEnv) {
             "",
             "модули: dns mitm stalk xray traces notif osint spy 2fa cams",
             "        speed sensors nfc ir ssh usb cells gnss sonic exif",
-            "        audit tools mon games learn  ·  matrix",
+            "        audit tools mon games learn py  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */

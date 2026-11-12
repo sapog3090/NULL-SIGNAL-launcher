@@ -10,6 +10,8 @@ enum class Trigger {
     CIPHER_WON,      // расшифровал все перехваты
     VULN_WON,        // нашёл все дыры в коде
     NODES_WON,       // собрал сеть в «Узлах»
+    PY_TASKS,        // решил три задачи в PYTHON
+    BREACH_SCRIPT,   // подобрал ключ в BREACH своим скриптом
 }
 
 /** Участник группировки NULL//SIGNAL. */
@@ -66,6 +68,7 @@ object Story {
                 Message(Member.JAY, "Видела твой скан. Неплохо."),
                 Message(Member.JAY, "Helix шифрует свои терминалы 4-значными hex-ключами. Звучит смешно, но людей на этом ловят каждый день."),
                 Message(Member.JAY, "В BREACH есть тренажёр. Подбери ключ, пока не кончились попытки."),
+                Message(Member.JAY, "Включи АНАЛИЗАТОР — он покажет, какие символы ещё возможны. А на вкладке СКРИПТОМ лежит готовый решатель на Python: запусти и посмотри, как он думает."),
             ),
             objective = "Пройди тренировочный взлом в BREACH",
             trigger = Trigger.BREACH_WON,
@@ -122,6 +125,27 @@ object Story {
             objective = "Собери сеть: GAMES → УЗЛЫ",
             trigger = Trigger.NODES_WON,
             reward = 200,
+        ),
+        Chapter(
+            id = "code",
+            messages = listOf(
+                Message(Member.KILOBYTE, "слушай, хватит жить на чужих инструментах"),
+                Message(Member.KILOBYTE, "оператор, который не пишет код, — пассажир. у тебя в телефоне теперь есть PYTHON: пишешь программу и сразу запускаешь"),
+                Message(Member.KILOBYTE, "зайди в PYTHON → ЗАДАЧИ и реши три любые. застрянешь — после трёх попыток дам подсмотреть решение, но разберись, как оно работает"),
+            ),
+            objective = "Реши 3 задачи: PYTHON → ЗАДАЧИ",
+            trigger = Trigger.PY_TASKS,
+            reward = 250,
+        ),
+        Chapter(
+            id = "script",
+            messages = listOf(
+                Message(Member.JAY, "Helix сменил замки на учебном стенде: ключ теперь живёт недолго, руками считать некогда."),
+                Message(Member.JAY, "BREACH → СКРИПТОМ. Пусть ключ подберёт твоя программа. Готовый решатель там уже есть — запусти его, а потом измени под себя: другие первые ходы, свой вывод."),
+            ),
+            objective = "Подбери ключ программой: BREACH → СКРИПТОМ",
+            trigger = Trigger.BREACH_SCRIPT,
+            reward = 300,
         ),
         Chapter(
             id = "tbc",

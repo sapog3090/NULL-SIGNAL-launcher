@@ -52,6 +52,17 @@ fun AcademyScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             modifier = Modifier.padding(vertical = 6.dp),
         )
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            item {
+                Text(
+                    "▶ ПРАКТИКА: пиши код и проверяй  ${vm.tasksDone.size}/${com.nullsignal.core.academy.Practice.tasks.size}",
+                    style = Ns.text.copy(color = Ns.Red),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .hud(Ns.Red)
+                        .clickable { vm.moduleArg = "tasks"; vm.screen = com.nullsignal.core.terminal.Module.PYTHON }
+                        .padding(10.dp),
+                )
+            }
             itemsIndexed(Academy.lessons) { i, l ->
                 val done = l.id in vm.lessonsDone
                 val unlocked = Academy.unlocked(i, vm.lessonsDone)
@@ -73,7 +84,7 @@ fun AcademyScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             }
             item {
                 Text(
-                    "совет: код из уроков можно запускать на телефоне в Pydroid 3 или Termux.",
+                    "код из уроков можно запускать прямо здесь: модуль PYTHON на рабочем столе.",
                     style = Ns.small,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )

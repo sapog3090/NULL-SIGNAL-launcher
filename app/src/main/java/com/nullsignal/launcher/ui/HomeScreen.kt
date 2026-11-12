@@ -147,8 +147,9 @@ fun HomeScreen(vm: LauncherViewModel) {
         ),
         "группа" to listOf(
             Tile(Module.MESSAGES, "СООБЩЕНИЯ", if (unread > 0) "новых: $unread" else "канал группы", if (unread > 0) Ns.Red else Ns.Green),
-            Tile(Module.GAMES, "ТРЕНАЖЁРЫ", "взлом · шифры · код", Ns.Dim),
+            Tile(Module.GAMES, "ТРЕНАЖЁРЫ", "ключи · шифры · код", Ns.Dim),
             Tile(Module.ACADEMY, "ОБУЧЕНИЕ", "python ${vm.lessonsDone.size}/${Academy.lessons.size}", Ns.Dim),
+            Tile(Module.PYTHON, "PYTHON", "свой код · задачи ${vm.tasksDone.size}/${com.nullsignal.core.academy.Practice.tasks.size}", Ns.Red),
         ),
     )
     Box(Modifier.fillMaxSize()) {

@@ -126,6 +126,18 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
         save(progress.copy(followers = progress.followers + lesson.reward))
     }
 
+    var tasksDone by mutableStateOf(prefs.getStringSet("pytasks", emptySet())!!.toSet())
+        private set
+
+    /** Задача из практики решена: награда даётся один раз. */
+    fun completeTask(task: com.nullsignal.core.academy.PracticeTask) {
+        if (task.id in tasksDone) return
+        tasksDone = tasksDone + task.id
+        prefs.edit().putStringSet("pytasks", tasksDone).apply()
+        save(progress.copy(followers = progress.followers + task.reward))
+        if (tasksDone.size >= 3) fire(Trigger.PY_TASKS)
+    }
+
     private fun save(p: Progress) {
         progress = p
         prefs.edit().putInt("chapter", p.chapter).putInt("followers", p.followers).putInt("read", p.readMessages).apply()
