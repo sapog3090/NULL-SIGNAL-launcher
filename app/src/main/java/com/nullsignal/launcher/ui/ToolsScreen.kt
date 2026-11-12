@@ -69,7 +69,7 @@ private fun Field(
         cursorBrush = SolidColor(Ns.Green),
         visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = if (secret) KeyboardType.Password else KeyboardType.Text),
-        modifier = modifier.fillMaxWidth().border(1.dp, Ns.Dim).padding(10.dp),
+        modifier = modifier.fillMaxWidth().hud(Ns.Dim).padding(10.dp),
         decorationBox = { inner ->
             if (value.isEmpty()) Text(hint, style = Ns.text.copy(color = Ns.Faint))
             inner()
@@ -90,7 +90,7 @@ fun ToolsScreen(onBack: () -> Unit) {
                     modifier = Modifier
                         .weight(1f)
                         .background(if (i == tab) Ns.Green else Ns.Bg)
-                        .border(1.dp, Ns.Dim)
+                        .hud(Ns.Dim)
                         .clickable { tab = i }
                         .padding(vertical = 8.dp),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -170,7 +170,7 @@ private fun CryptTab() {
     if (busy) Text("вычисляю ключ…", style = Ns.small.copy(color = Ns.Amber))
     if (result.isNotEmpty()) {
         SelectionContainer {
-            Text(result, style = Ns.text.copy(color = Ns.Cyan), modifier = Modifier.fillMaxWidth().border(1.dp, Ns.Faint).padding(8.dp))
+            Text(result, style = Ns.text.copy(color = Ns.Cyan), modifier = Modifier.fillMaxWidth().hud(Ns.Faint).padding(8.dp))
         }
         Text("[скопировать]", style = Ns.small.copy(color = Ns.Cyan), modifier = Modifier.clickable { clip.setText(AnnotatedString(result)) }.padding(4.dp))
     }
@@ -198,7 +198,7 @@ private fun QrTab() {
     }
     error?.let { Text(it, style = Ns.small.copy(color = Ns.Red)) }
     scanned?.let { raw ->
-        SelectionContainer { Text(raw, style = Ns.text, modifier = Modifier.fillMaxWidth().border(1.dp, Ns.Faint).padding(8.dp)) }
+        SelectionContainer { Text(raw, style = Ns.text, modifier = Modifier.fillMaxWidth().hud(Ns.Faint).padding(8.dp)) }
         val wifi = UrlInspector.parseWifiQr(raw)
         when {
             wifi != null -> {

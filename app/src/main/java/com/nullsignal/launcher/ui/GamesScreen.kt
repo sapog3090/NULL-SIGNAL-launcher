@@ -70,7 +70,7 @@ fun GamesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items.forEach { (id, title, desc) ->
                 Column(
-                    Modifier.fillMaxWidth().border(1.dp, Ns.Dim).clickable {
+                    Modifier.fillMaxWidth().hud(Ns.Dim).clickable {
                         if (id == "breach") vm.screen = Module.BREACH else game = id
                     }.padding(12.dp),
                 ) {
@@ -103,7 +103,7 @@ private fun CipherView(vm: LauncherViewModel, onExit: () -> Unit) {
             Text("перехват ${idx + 1}/${CipherGame.levels.size}: ${level.title}", style = Ns.text.copy(color = Ns.Amber))
             Spacer(Modifier.height(8.dp))
             SelectionContainer {
-                Text(level.encoded, style = Ns.title.copy(color = Ns.Cyan), modifier = Modifier.fillMaxWidth().border(1.dp, Ns.Faint).padding(10.dp))
+                Text(level.encoded, style = Ns.title.copy(color = Ns.Cyan), modifier = Modifier.fillMaxWidth().hud(Ns.Faint).padding(10.dp))
             }
             Text("[скопировать — пригодится в терминале]", style = Ns.small.copy(color = Ns.Cyan),
                 modifier = Modifier.clickable { clip.setText(AnnotatedString(level.encoded)) }.padding(4.dp))
@@ -125,7 +125,7 @@ private fun CipherView(vm: LauncherViewModel, onExit: () -> Unit) {
                 cursorBrush = SolidColor(Ns.Green),
                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { submit() }),
-                modifier = Modifier.fillMaxWidth().border(1.dp, if (wrong) Ns.Red else Ns.Dim).padding(10.dp),
+                modifier = Modifier.fillMaxWidth().hud(if (wrong) Ns.Red else Ns.Dim).padding(10.dp),
                 decorationBox = { inner ->
                     if (answer.isEmpty()) Text("расшифровка…", style = Ns.text.copy(color = Ns.Faint))
                     inner()
@@ -158,7 +158,7 @@ private fun VulnView(vm: LauncherViewModel, onExit: () -> Unit) {
             Text("файл ${idx + 1}/${VulnHunt.snippets.size}: ${s.title}", style = Ns.text.copy(color = Ns.Amber))
             Text("нажми на строку с уязвимостью", style = Ns.small)
             Spacer(Modifier.height(8.dp))
-            Column(Modifier.fillMaxWidth().background(Ns.Panel).border(1.dp, Ns.Faint)) {
+            Column(Modifier.fillMaxWidth().background(Ns.Panel).hud(Ns.Faint)) {
                 s.lines.forEachIndexed { i, line ->
                     val c = when {
                         found && i == s.vulnerable -> Ns.Red
@@ -222,7 +222,7 @@ private fun NodesView(vm: LauncherViewModel, onExit: () -> Unit) {
             if (solved) "СЕТЬ СОБРАНА ✓  ходов: $moves" else "в сети: ${connected.size}/${grid * grid}  ходов: $moves",
             style = Ns.text.copy(color = if (solved) Ns.Green else Ns.Amber),
         )
-        Column(Modifier.fillMaxWidth().aspectRatio(1f).padding(vertical = 8.dp).border(1.dp, Ns.Faint)) {
+        Column(Modifier.fillMaxWidth().aspectRatio(1f).padding(vertical = 8.dp).hud(Ns.Faint)) {
             for (r in 0 until grid) {
                 Row(Modifier.weight(1f).fillMaxWidth()) {
                     for (c in 0 until grid) {

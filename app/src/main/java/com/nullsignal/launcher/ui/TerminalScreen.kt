@@ -73,9 +73,9 @@ fun TerminalScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             if (vm.termBusy) {
-                Text("^C стоп", style = Ns.small.copy(color = Ns.Red), modifier = Modifier.border(1.dp, Ns.Red).clickable { vm.interrupt() }.padding(8.dp))
+                Text("^C стоп", style = Ns.small.copy(color = Ns.Red), modifier = Modifier.hud(Ns.Red).clickable { vm.interrupt() }.padding(8.dp))
             }
-            Text("↑", style = Ns.small, modifier = Modifier.border(1.dp, Ns.Faint).clickable {
+            Text("↑", style = Ns.small, modifier = Modifier.hud(Ns.Faint).clickable {
                 val h = vm.termHistory
                 if (h.isNotEmpty()) {
                     historyPos = if (historyPos < 0) h.lastIndex else (historyPos - 1).coerceAtLeast(0)
@@ -83,10 +83,10 @@ fun TerminalScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                 }
             }.padding(8.dp))
             QUICK.forEach { q ->
-                Text(q, style = Ns.small, modifier = Modifier.border(1.dp, Ns.Faint).clickable { input = q }.padding(8.dp))
+                Text(q, style = Ns.small, modifier = Modifier.hud(Ns.Faint).clickable { input = q }.padding(8.dp))
             }
         }
-        Row(Modifier.fillMaxWidth().border(1.dp, Ns.Dim).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().hud(Ns.Dim).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (vm.termBusy) "… " else "$ ", style = Ns.text.copy(color = Ns.Cyan))
             BasicTextField(
                 value = input,

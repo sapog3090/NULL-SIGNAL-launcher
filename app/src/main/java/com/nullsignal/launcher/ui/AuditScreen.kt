@@ -120,14 +120,14 @@ fun AuditScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         }
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             item {
-                Column(Modifier.fillMaxWidth().border(1.dp, color).padding(12.dp)) {
+                Column(Modifier.fillMaxWidth().hud(color).padding(12.dp)) {
                     Text("ЗАЩИЩЁННОСТЬ: $score/100", style = Ns.title.copy(color = color, fontSize = 22.sp))
                     Text(asciiBar(score / 100f, 28), style = Ns.text.copy(color = color))
                     Text("оценка ${Audit.grade(score)}", style = Ns.text.copy(color = color))
                 }
             }
             items(f) { x ->
-                Column(Modifier.fillMaxWidth().border(1.dp, if (x.ok) Ns.Faint else Ns.Red).padding(8.dp)) {
+                Column(Modifier.fillMaxWidth().hud(if (x.ok) Ns.Faint else Ns.Red).padding(8.dp)) {
                     Text("${if (x.ok) "[✓]" else "[✗]"} ${x.title}", style = Ns.text.copy(color = if (x.ok) Ns.Green else Ns.Red))
                     Text(x.detail, style = Ns.small.copy(color = if (x.ok) Ns.Dim else Ns.Amber))
                 }
@@ -145,7 +145,7 @@ fun AuditScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             }
             items(apps, key = { it.pkg }) { a ->
                 Column(
-                    Modifier.fillMaxWidth().border(1.dp, Ns.Faint).clickable {
+                    Modifier.fillMaxWidth().hud(Ns.Faint).clickable {
                         runCatching {
                             ctx.startActivity(
                                 Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${a.pkg}"))

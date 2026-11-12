@@ -12,6 +12,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nullsignal.core.story.Progress
@@ -140,6 +142,27 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
                     .map { AppEntry(it.loadLabel(pm).toString(), it.activityInfo.packageName, it.activityInfo.name) }
                     .distinctBy { it.pkg + it.cls }
                     .sortedBy { it.label.lowercase() }
+            }
+            loadIcons(apps)
+        }
+    }
+
+    /** Иконки приложений: пакет+класс → картинка. Грузятся в фоне после списка. */
+    val icons = androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.graphics.ImageBitmap>()
+
+    private fun loadIcons(list: List<AppEntry>) {
+        viewModelScope.launch {
+            val pm = ctx.packageManager
+            list.filter { (it.pkg + "/" + it.cls) !in icons }.chunked(12).forEach { batch ->
+                val loaded = withContext(Dispatchers.IO) {
+                    batch.mapNotNull { a ->
+                        runCatching {
+                            val d = pm.getActivityIcon(ComponentName(a.pkg, a.cls))
+                            (a.pkg + "/" + a.cls) to d.toBitmap(96, 96).asImageBitmap()
+                        }.getOrNull()
+                    }
+                }
+                loaded.forEach { (k, v) -> icons[k] = v }
             }
         }
     }

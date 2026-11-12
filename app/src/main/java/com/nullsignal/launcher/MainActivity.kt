@@ -6,7 +6,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -34,6 +38,13 @@ import com.nullsignal.launcher.ui.NsTheme
 import com.nullsignal.launcher.ui.TerminalScreen
 import com.nullsignal.launcher.ui.WifiScreen
 import com.nullsignal.launcher.ui.scanlines
+import com.nullsignal.launcher.ui.cyberBackground
+import com.nullsignal.launcher.ui.hud
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Column
 
 class MainActivity : ComponentActivity() {
     private val vm: LauncherViewModel by viewModels()
@@ -45,8 +56,15 @@ class MainActivity : ComponentActivity() {
             NsTheme {
                 val home = { vm.screen = Module.HOME }
                 BackHandler(enabled = vm.screen != Module.HOME, onBack = home)
-                Box(Modifier.fillMaxSize().background(Ns.Bg).scanlines().safeDrawingPadding()) {
-                    when (vm.screen) {
+                Box(Modifier.fillMaxSize().cyberBackground().scanlines().safeDrawingPadding()) {
+                    AnimatedContent(
+                        targetState = vm.screen,
+                        transitionSpec = {
+                            (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.97f)) togetherWith fadeOut(tween(120))
+                        },
+                        label = "screen",
+                    ) { screen ->
+                    when (screen) {
                         Module.HOME -> HomeScreen(vm)
                         Module.TERMINAL -> TerminalScreen(vm, home)
                         Module.NETSCAN -> NetScanScreen(vm, home)
@@ -60,17 +78,21 @@ class MainActivity : ComponentActivity() {
                         Module.MONITOR -> MonitorScreen(home)
                         Module.GAMES -> GamesScreen(vm, home)
                     }
-                    AnimatedVisibility(vm.notice != null, modifier = Modifier.align(Alignment.TopCenter)) {
-                        Text(
-                            vm.notice.orEmpty(),
-                            style = Ns.text.copy(color = Ns.Bg),
-                            modifier = Modifier
-                                .padding(8.dp)
-                                .fillMaxWidth()
-                                .background(Ns.Green)
-                                .border(1.dp, Ns.Cyan)
-                                .padding(10.dp),
-                        )
+                    }
+                    AnimatedVisibility(
+                        vm.notice != null,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                        enter = slideInVertically { -it } + fadeIn(),
+                        exit = slideOutVertically { -it } + fadeOut(),
+                    ) {
+                        Column(
+                            Modifier.padding(10.dp).fillMaxWidth()
+                                .hud(Ns.Green, fill = Ns.Bg2.copy(alpha = 0.95f))
+                                .padding(12.dp),
+                        ) {
+                            Text("ВХОДЯЩИЙ СИГНАЛ", style = Ns.label.copy(color = Ns.Cyan))
+                            Text(vm.notice.orEmpty(), style = Ns.text)
+                        }
                     }
                 }
             }

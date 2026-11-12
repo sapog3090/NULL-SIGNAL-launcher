@@ -66,7 +66,7 @@ fun AcademyScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                     style = Ns.text.copy(color = color),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, color.copy(alpha = 0.5f))
+                        .hud(color.copy(alpha = 0.5f))
                         .clickable(enabled = unlocked) { open = l }
                         .padding(10.dp),
                 )
@@ -91,7 +91,7 @@ private fun CodeBlock(code: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Ns.Panel)
-            .border(1.dp, Ns.Faint)
+            .hud(Ns.Faint)
             .horizontalScroll(rememberScrollState())
             .padding(10.dp),
     )
@@ -142,7 +142,7 @@ private fun LessonView(lesson: Lesson, onExit: () -> Unit, onDone: () -> Unit) {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 3.dp)
-                                    .border(1.dp, c)
+                                    .hud(c)
                                     .clickable(enabled = answered == null) {
                                         picked = i
                                         answered = Academy.check(task, i.toString())
@@ -165,7 +165,7 @@ private fun LessonView(lesson: Lesson, onExit: () -> Unit, onDone: () -> Unit) {
                                 cursorBrush = SolidColor(Ns.Green),
                                 keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
                                 keyboardActions = KeyboardActions(onDone = { submit() }),
-                                modifier = Modifier.fillMaxWidth().border(1.dp, Ns.Dim).padding(10.dp),
+                                modifier = Modifier.fillMaxWidth().hud(Ns.Dim).padding(10.dp),
                                 decorationBox = { inner ->
                                     if (text.isEmpty()) Text("ответ…", style = Ns.text.copy(color = Ns.Faint))
                                     inner()

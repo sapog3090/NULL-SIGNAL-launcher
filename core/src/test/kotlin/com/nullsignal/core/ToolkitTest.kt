@@ -118,3 +118,14 @@ class ToolkitTest {
         assertTrue(t.execute("pwcheck 123456").lines.first().contains("СЛАБЫЙ"))
     }
 }
+
+class RanksTest {
+    @Test fun ranks() {
+        val r = com.nullsignal.core.story.Ranks
+        assertEquals("НОВИЧОК", r.of(0).rank.title)
+        assertEquals(0.5f, r.of(25).progress, 0.001f)
+        assertEquals("ОПЕРАТОР", r.of(200).rank.title)
+        assertEquals(null, r.of(5000).next)
+        assertEquals(1f, r.of(5000).progress, 0.001f)
+    }
+}

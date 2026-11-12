@@ -66,7 +66,7 @@ fun NetScanScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         if (vm.scanning) Text(asciiBar(vm.scanProgress), style = Ns.text)
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             items(vm.scanHosts, key = { it.ip }) { h ->
-                Column(Modifier.fillMaxWidth().border(1.dp, if (h.gateway) Ns.Cyan else Ns.Faint).padding(8.dp)) {
+                Column(Modifier.fillMaxWidth().hud(if (h.gateway) Ns.Cyan else Ns.Faint).padding(8.dp)) {
                     Text(
                         "${h.ip}${if (h.gateway) "  [РОУТЕР]" else ""}",
                         style = Ns.text.copy(color = if (h.gateway) Ns.Cyan else Ns.Green),
@@ -108,7 +108,7 @@ fun MessagesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(inbox.size) { i ->
                 val m = inbox[i]
-                Column(Modifier.fillMaxWidth().border(1.dp, Ns.Faint).padding(8.dp)) {
+                Column(Modifier.fillMaxWidth().hud(Ns.Faint).padding(8.dp)) {
                     Text("<${m.from.handle}>", style = Ns.text.copy(color = Ns.Cyan))
                     if (i >= firstNew) TypewriterText(m.text, charDelayMs = 18) else Text(m.text, style = Ns.text)
                 }
@@ -117,7 +117,7 @@ fun MessagesScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         Text(
             "[ЗАДАЧА] ${vm.engine.current(vm.progress).objective}",
             style = Ns.text.copy(color = Ns.Amber),
-            modifier = Modifier.fillMaxWidth().border(1.dp, Ns.Amber).padding(8.dp),
+            modifier = Modifier.fillMaxWidth().hud(Ns.Amber).padding(8.dp),
         )
     }
 }
@@ -170,7 +170,7 @@ fun BreachScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                                 style = Ns.title.copy(textAlign = TextAlign.Center, color = if (k == "⏎") Ns.Cyan else Ns.Green),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .border(1.dp, Ns.Dim)
+                                    .hud(Ns.Dim)
                                     .clickable {
                                         when (k) {
                                             "⌫" -> input = input.dropLast(1)

@@ -51,7 +51,7 @@ private fun human(bytesPerSec: Double): String = when {
 
 @Composable
 private fun Graph(values: List<Float>, color: Color, title: String, value: String) {
-    Column(Modifier.fillMaxWidth().border(1.dp, Ns.Faint).padding(8.dp)) {
+    Column(Modifier.fillMaxWidth().hud(Ns.Faint).padding(8.dp)) {
         Text("$title  $value", style = Ns.text.copy(color = color))
         Canvas(Modifier.fillMaxWidth().height(70.dp).padding(top = 4.dp)) {
             val max = (values.maxOrNull() ?: 1f).coerceAtLeast(1f)

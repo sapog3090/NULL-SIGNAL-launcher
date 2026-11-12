@@ -106,7 +106,7 @@ fun WifiScreen(onBack: () -> Unit) {
         LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(nets, key = { it.bssid + it.freq }) { n ->
                 val weak = n.security == "OPEN" || n.security == "WEP"
-                Column(Modifier.fillMaxWidth().border(1.dp, if (weak) Ns.Red else Ns.Faint).padding(8.dp)) {
+                Column(Modifier.fillMaxWidth().hud(if (weak) Ns.Red else Ns.Faint).padding(8.dp)) {
                     Row {
                         Text(signalBars(n.level) + "  ", style = Ns.text.copy(color = Ns.Cyan))
                         Text(n.ssid, style = Ns.text, modifier = Modifier.weight(1f), maxLines = 1)
