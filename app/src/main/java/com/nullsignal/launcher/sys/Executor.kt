@@ -51,6 +51,15 @@ class Executor(private val ctx: Context) {
                 "wifiinfo" -> NetTools.wifiinfo(ctx, out)
                 "portscan" -> NetTools.portscan(cmd.args[0], out)
                 "pwned" -> NetTools.pwned(cmd.rawArgs, out)
+                "ipinfo" -> TermOsint.ipinfo(cmd.args[0], out)
+                "subdomains" -> TermOsint.subdomains(cmd.args[0], out)
+                "tech" -> TermOsint.tech(cmd.args[0], out)
+                "mailsec" -> TermOsint.mailsec(cmd.args[0], out)
+                "wayback" -> TermOsint.wayback(cmd.args[0], out)
+                "user" -> TermOsint.user(cmd.args[0], out)
+                "leak" -> TermOsint.leak(cmd.args[0], out)
+                "upnp" -> TermOsint.upnp(ctx, out)
+                "wol" -> TermOsint.wol(ctx, cmd.args[0], out)
                 else -> out("${cmd.command}: не реализовано")
             }
         } catch (e: Exception) {

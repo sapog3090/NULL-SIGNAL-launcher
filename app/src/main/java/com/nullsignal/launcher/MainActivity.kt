@@ -84,6 +84,10 @@ class MainActivity : ComponentActivity() {
                         Module.STALKER -> StalkerScreen(home)
                         Module.EXIF -> ExifScreen(home)
                         Module.CAMS -> com.nullsignal.launcher.ui.CamsScreen(vm, home)
+                        Module.XRAY -> com.nullsignal.launcher.ui.XrayScreen(home)
+                        Module.TRACES -> com.nullsignal.launcher.ui.TracesScreen(home)
+                        Module.NOTIFLOG -> com.nullsignal.launcher.ui.NotifLogScreen(home)
+                        Module.OSINT -> com.nullsignal.launcher.ui.OsintScreen(vm, home)
                         else -> com.nullsignal.launcher.ui.ModuleScreen(screen.title, home) {
                             androidx.compose.material3.Text("модуль собирается…", style = Ns.text)
                         }
