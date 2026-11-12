@@ -120,7 +120,7 @@ class Terminal(private val env: TerminalEnv) {
             )
             "about" -> Output(
                 listOf(
-                    "NULL//SIGNAL shell v0.1",
+                    "NULL//SIGNAL shell v0.3",
                     "лаунчер-игра про хакеров. всё «взломанное» здесь вымышлено,",
                     "а сетевые инструменты работают только в твоей сети.",
                 ),

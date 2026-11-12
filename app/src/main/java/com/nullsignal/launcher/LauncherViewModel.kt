@@ -187,7 +187,7 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     // ---------- терминал ----------
 
     val termLines = mutableStateListOf(
-        TermLine("NULL//SIGNAL shell v0.1 — введи help", LineKind.SYSTEM),
+        TermLine("NULL//SIGNAL shell v0.3 — введи help", LineKind.SYSTEM),
     )
     var termBusy by mutableStateOf(false)
         private set

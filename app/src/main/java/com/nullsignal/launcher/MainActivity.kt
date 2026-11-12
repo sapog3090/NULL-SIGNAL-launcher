@@ -94,9 +94,7 @@ class MainActivity : ComponentActivity() {
                         Module.SENSORS -> com.nullsignal.launcher.ui.SensorsScreen(home)
                         Module.NFC -> com.nullsignal.launcher.ui.NfcScreen(home)
                         Module.IR -> com.nullsignal.launcher.ui.IrScreen(home)
-                        else -> com.nullsignal.launcher.ui.ModuleScreen(screen.title, home) {
-                            androidx.compose.material3.Text("модуль собирается…", style = Ns.text)
-                        }
+                        Module.SSH -> com.nullsignal.launcher.ui.SshScreen(vm, home)
                     }
                     }
                     AnimatedVisibility(
