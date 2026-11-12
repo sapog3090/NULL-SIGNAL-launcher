@@ -90,6 +90,10 @@ class MainActivity : ComponentActivity() {
                         Module.OSINT -> com.nullsignal.launcher.ui.OsintScreen(vm, home)
                         Module.SPY -> com.nullsignal.launcher.ui.SpyScreen(home)
                         Module.AUTH -> com.nullsignal.launcher.ui.AuthScreen(home)
+                        Module.SPEED -> com.nullsignal.launcher.ui.SpeedScreen(home)
+                        Module.SENSORS -> com.nullsignal.launcher.ui.SensorsScreen(home)
+                        Module.NFC -> com.nullsignal.launcher.ui.NfcScreen(home)
+                        Module.IR -> com.nullsignal.launcher.ui.IrScreen(home)
                         else -> com.nullsignal.launcher.ui.ModuleScreen(screen.title, home) {
                             androidx.compose.material3.Text("модуль собирается…", style = Ns.text)
                         }

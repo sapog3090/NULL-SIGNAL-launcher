@@ -23,9 +23,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
@@ -52,7 +57,9 @@ import kotlin.math.sin
 
 // ---------------- WIFI-RADAR ----------------
 
-data class WifiNet(val ssid: String, val bssid: String, val level: Int, val freq: Int, val security: String)
+data class WifiNet(val ssid: String, val bssid: String, val level: Int, val freq: Int, val security: String, val wps: Boolean = false) {
+    val channel: Int get() = Tools.wifiChannel(freq)
+}
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -69,7 +76,10 @@ fun WifiScreen(onBack: () -> Unit) {
             w.scanResults.map {
                 @Suppress("DEPRECATION")
                 val ssid = it.SSID
-                WifiNet(ssid.ifBlank { "<скрытая сеть>" }, it.BSSID ?: "?", it.level, it.frequency, Tools.wifiSecurity(it.capabilities ?: ""))
+                WifiNet(
+                    ssid.ifBlank { "<скрытая сеть>" }, it.BSSID ?: "?", it.level, it.frequency,
+                    Tools.wifiSecurity(it.capabilities ?: ""), com.nullsignal.core.hw.WifiChannels.wps(it.capabilities ?: ""),
+                )
             }.sortedByDescending { it.level }
         }.getOrDefault(emptyList())
         status = if (nets.isEmpty()) "пусто. включи Wi-Fi и геолокацию (без неё Android не отдаёт список)" else "сетей в эфире: ${nets.size}"
@@ -100,20 +110,30 @@ fun WifiScreen(onBack: () -> Unit) {
             PermissionGate("Android показывает Wi-Fi сети вокруг только приложениям с доступом к геолокации.", request)
             return@ModuleScreen
         }
+        var tab by remember { mutableStateOf(0) }
         Text(status, style = Ns.text.copy(color = Ns.Amber))
         val open = nets.count { it.security == "OPEN" || it.security == "WEP" }
         if (open > 0) Text("⚠ небезопасных сетей: $open — не вводи там пароли", style = Ns.small.copy(color = Ns.Red))
-        LazyColumn(Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        val wps = nets.count { it.wps }
+        if (wps > 0) Text("⚠ сетей с WPS: $wps — WPS-PIN подбирается за часы, у себя выключи", style = Ns.small.copy(color = Ns.Amber))
+        Spacer(Modifier.height(6.dp))
+        NsTabs(listOf("СЕТИ", "КАНАЛЫ"), tab, Ns.Red) { tab = it }
+        if (tab == 1) {
+            ChannelsTab(nets)
+            return@ModuleScreen
+        }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(nets, key = { it.bssid + it.freq }) { n ->
                 val weak = n.security == "OPEN" || n.security == "WEP"
                 Column(Modifier.fillMaxWidth().hud(if (weak) Ns.Red else Ns.Faint).padding(8.dp)) {
                     Row {
                         Text(signalBars(n.level) + "  ", style = Ns.text.copy(color = Ns.Cyan))
                         Text(n.ssid, style = Ns.text, modifier = Modifier.weight(1f), maxLines = 1)
+                        if (n.wps) Text("WPS ", style = Ns.text.copy(color = Ns.Amber))
                         Text(n.security, style = Ns.text.copy(color = if (weak) Ns.Red else Ns.Green))
                     }
                     Text(
-                        "${n.bssid}  ${n.level} dBm  ch${Tools.wifiChannel(n.freq)}  ${if (n.freq > 5900) "6 ГГц" else if (n.freq > 4900) "5 ГГц" else "2.4 ГГц"}",
+                        "${n.bssid}  ${n.level} dBm  ch${n.channel}  ${if (n.freq > 5900) "6 ГГц" else if (n.freq > 4900) "5 ГГц" else "2.4 ГГц"}",
                         style = Ns.small,
                     )
                 }
@@ -122,9 +142,55 @@ fun WifiScreen(onBack: () -> Unit) {
     }
 }
 
+/** Загрузка каналов и лучший канал для своего роутера. */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.ChannelsTab(nets: List<WifiNet>) {
+    val ch = nets.map { com.nullsignal.core.hw.WifiChannels.Net(it.channel, it.level, it.freq) }
+    val load24 = com.nullsignal.core.hw.WifiChannels.load24(ch)
+    val load5 = com.nullsignal.core.hw.WifiChannels.load5(ch)
+    val best = com.nullsignal.core.hw.WifiChannels.best24(ch)
+    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Panel(color = Ns.Red) {
+            Text("ЛУЧШИЙ КАНАЛ 2.4 ГГц: $best", style = Ns.title.copy(fontSize = 18.sp, color = Ns.Red))
+            Text(
+                "Выбери его в настройках своего роутера — меньше помех от соседей, выше скорость. " +
+                    "Каналы 1, 6 и 11 не перекрываются между собой.",
+                style = Ns.small,
+            )
+        }
+        SectionTitle("загрузка 2.4 ГГц (с учётом перекрытия)")
+        val max = (load24.maxOfOrNull { it.score } ?: 1.0).coerceAtLeast(0.5)
+        Canvas(Modifier.fillMaxWidth().height(140.dp).padding(vertical = 6.dp)) {
+            val w = size.width / load24.size
+            load24.forEachIndexed { i, l ->
+                val h = (l.score / max).toFloat() * (size.height - 4f)
+                drawRect(
+                    if (l.channel == best) Ns.Red else if (l.channel in listOf(1, 6, 11)) Ns.Green else Ns.Dim,
+                    topLeft = Offset(i * w + w * 0.15f, size.height - h),
+                    size = androidx.compose.ui.geometry.Size(w * 0.7f, h.coerceAtLeast(2f)),
+                )
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            load24.forEach { l ->
+                Text(
+                    "${l.channel}", style = Ns.small.copy(fontSize = 9.sp, color = if (l.channel == best) Ns.Red else Ns.Dim, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        load24.filter { it.networks > 0 }.forEach { l -> KeyValue("канал ${l.channel}", "сетей: ${l.networks}") }
+        if (load5.isNotEmpty()) {
+            SectionTitle("5 ГГц")
+            Text("В 5 ГГц каналов много и они не перекрываются — если роутер умеет, переходи туда.", style = Ns.small)
+            load5.forEach { l -> KeyValue("канал ${l.channel}", "сетей: ${l.networks}") }
+        }
+    }
+}
+
 // ---------------- BLE-RADAR ----------------
 
-data class BleDev(val address: String, val name: String?, val rssi: Int, val txPower: Int?, val seen: Long)
+data class BleDev(val address: String, val name: String?, val rssi: Int, val txPower: Int?, val seen: Long, val vendor: String? = null)
 
 private fun blePermissions(): Array<String> =
     if (Build.VERSION.SDK_INT >= 31) arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -151,7 +217,14 @@ fun BleScreen(onBack: () -> Unit) {
                 override fun onScanResult(callbackType: Int, r: ScanResult) {
                     val name = r.scanRecord?.deviceName ?: runCatching { r.device.name }.getOrNull()
                     val tx = r.txPower.takeIf { it != ScanResult.TX_POWER_NOT_PRESENT }
-                    devices[r.device.address] = BleDev(r.device.address, name, r.rssi, tx, System.currentTimeMillis())
+                    val man = r.scanRecord?.manufacturerSpecificData
+                    val vendor = if (man != null && man.size() > 0) {
+                        val id = man.keyAt(0)
+                        val base = com.nullsignal.core.hw.BleVendors.name(id)
+                        val apple = if (id == 0x004C) com.nullsignal.core.hw.BleVendors.appleKind(man.valueAt(0) ?: ByteArray(0)) else null
+                        listOfNotNull(base, apple).joinToString(" · ").ifEmpty { null }
+                    } else null
+                    devices[r.device.address] = BleDev(r.device.address, name, r.rssi, tx, System.currentTimeMillis(), vendor)
                 }
                 override fun onScanFailed(errorCode: Int) {
                     status = "ошибка сканирования ($errorCode)"
@@ -177,13 +250,18 @@ fun BleScreen(onBack: () -> Unit) {
         }
         val list = devices.values.sortedByDescending { it.rssi }
         Text("$status  устройств: ${list.size}", style = Ns.text.copy(color = Ns.Amber))
+        val vendors = list.mapNotNull { it.vendor?.substringBefore(" · ") }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }
+        if (vendors.isNotEmpty()) Text(vendors.take(5).joinToString("  ") { "${it.key} ${it.value}" }, style = Ns.small)
         Radar(list, Modifier.fillMaxWidth().aspectRatio(1f).padding(16.dp))
         LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             items(list, key = { it.address }) { d ->
                 val dist = Tools.distanceMeters(d.rssi, d.txPower?.let { it - 41 } ?: -59)
                 Row {
                     Text(signalBars(d.rssi) + " ", style = Ns.small.copy(color = Ns.Cyan))
-                    Text(d.name ?: d.address, style = Ns.small.copy(color = if (d.name != null) Ns.Green else Ns.Dim), modifier = Modifier.weight(1f), maxLines = 1)
+                    Column(Modifier.weight(1f)) {
+                        Text(d.name ?: d.vendor ?: d.address, style = Ns.small.copy(color = if (d.name != null) Ns.Green else Ns.Dim), maxLines = 1)
+                        if (d.name != null && d.vendor != null) Text(d.vendor, style = Ns.small.copy(fontSize = 9.sp, color = Ns.Faint), maxLines = 1)
+                    }
                     Text("${d.rssi}dBm ~%.1fм".format(dist), style = Ns.small)
                 }
             }
