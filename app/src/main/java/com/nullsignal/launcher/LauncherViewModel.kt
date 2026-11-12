@@ -99,8 +99,8 @@ class LauncherViewModel(app: Application) : AndroidViewModel(app) {
     var nodesWins by mutableStateOf(prefs.getInt("nodes", 0))
         private set
 
-    fun setCipherLevel(n: Int) { cipherLevel = n; prefs.edit().putInt("cipher", n).apply() }
-    fun setVulnLevel(n: Int) { vulnLevel = n; prefs.edit().putInt("vuln", n).apply() }
+    fun saveCipherLevel(n: Int) { cipherLevel = n; prefs.edit().putInt("cipher", n).apply() }
+    fun saveVulnLevel(n: Int) { vulnLevel = n; prefs.edit().putInt("vuln", n).apply() }
     fun addNodesWin() { nodesWins++; prefs.edit().putInt("nodes", nodesWins).apply() }
 
     // ---------- ACADEMY ----------

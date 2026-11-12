@@ -96,7 +96,7 @@ private fun CipherView(vm: LauncherViewModel, onExit: () -> Unit) {
             if (idx >= CipherGame.levels.size) {
                 GlitchText("ВСЕ ПЕРЕХВАТЫ РАСШИФРОВАНЫ")
                 Text("<СОЙКА> Отлично. Это ровно то, что нам было нужно.", style = Ns.text.copy(color = Ns.Cyan), modifier = Modifier.padding(vertical = 8.dp))
-                TermButton("ПРОЙТИ ЗАНОВО", Modifier.fillMaxWidth()) { vm.setCipherLevel(0) }
+                TermButton("ПРОЙТИ ЗАНОВО", Modifier.fillMaxWidth()) { vm.saveCipherLevel(0) }
                 return@Column
             }
             val level = CipherGame.levels[idx]
@@ -113,7 +113,7 @@ private fun CipherView(vm: LauncherViewModel, onExit: () -> Unit) {
             fun submit() {
                 if (CipherGame.check(level, answer)) {
                     answer = ""; wrong = false; showHint = false
-                    vm.setCipherLevel(idx + 1)
+                    vm.saveCipherLevel(idx + 1)
                     if (idx + 1 == CipherGame.levels.size) vm.fire(Trigger.CIPHER_WON)
                 } else wrong = true
             }
@@ -150,7 +150,7 @@ private fun VulnView(vm: LauncherViewModel, onExit: () -> Unit) {
             if (idx >= VulnHunt.snippets.size) {
                 GlitchText("ОТЧЁТ ГОТОВ")
                 Text("<ВОРОН> Все дыры найдены. Это пойдёт в отчёт.", style = Ns.text.copy(color = Ns.Cyan), modifier = Modifier.padding(vertical = 8.dp))
-                TermButton("ПРОЙТИ ЗАНОВО", Modifier.fillMaxWidth()) { vm.setVulnLevel(0) }
+                TermButton("ПРОЙТИ ЗАНОВО", Modifier.fillMaxWidth()) { vm.saveVulnLevel(0) }
                 return@Column
             }
             val s = VulnHunt.snippets[idx]
@@ -185,7 +185,7 @@ private fun VulnView(vm: LauncherViewModel, onExit: () -> Unit) {
                 Text("как чинить: ${s.fix}", style = Ns.text.copy(color = Ns.Cyan), modifier = Modifier.padding(vertical = 6.dp))
                 TermButton(if (idx == VulnHunt.snippets.lastIndex) "ЗАВЕРШИТЬ" else "СЛЕДУЮЩИЙ ФАЙЛ", Modifier.fillMaxWidth()) {
                     picked = -1
-                    vm.setVulnLevel(idx + 1)
+                    vm.saveVulnLevel(idx + 1)
                     if (idx + 1 == VulnHunt.snippets.size) vm.fire(Trigger.VULN_WON)
                 }
             }
