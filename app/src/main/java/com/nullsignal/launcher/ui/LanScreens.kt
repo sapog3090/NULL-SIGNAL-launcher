@@ -278,6 +278,18 @@ fun SpectrumScreen(onBack: () -> Unit) {
                 }
             }
             if (tone != 0) Text("играет $tone Гц — нажми ещё раз, чтобы выключить", style = Ns.small.copy(color = Ns.Amber))
+            SectionTitle("тоны DTMF")
+            Text("Звуки кнопок телефона: каждая — сумма двух частот. Их видно в спектре двумя пиками.", style = Ns.small)
+            val dtmf = remember { runCatching { android.media.ToneGenerator(AudioManager.STREAM_MUSIC, 80) }.getOrNull() }
+            DisposableEffect(Unit) { onDispose { dtmf?.release() } }
+            listOf("123", "456", "789", "*0#").forEach { row ->
+                Row(Modifier.padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEach { c ->
+                        val t = when (c) { '*' -> android.media.ToneGenerator.TONE_DTMF_S; '#' -> android.media.ToneGenerator.TONE_DTMF_P; else -> android.media.ToneGenerator.TONE_DTMF_0 + (c - '0') }
+                        TermButton(c.toString(), Modifier.weight(1f)) { dtmf?.startTone(t, 180) }
+                    }
+                }
+            }
             Spacer(Modifier.height(10.dp))
         }
     }

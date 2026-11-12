@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">NULL//SIGNAL</string>
+    <string name="nfc_emu">NULL//SIGNAL: эмуляция NFC-метки</string>
 </resources>

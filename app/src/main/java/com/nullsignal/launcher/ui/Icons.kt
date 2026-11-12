@@ -99,14 +99,6 @@ fun ModuleIcon(module: Module, color: Color, modifier: Modifier = Modifier, size
                 rect(6f, 6f, 12f, 12f, 1.5f); rect(9.5f, 9.5f, 5f, 5f, 0.5f)
                 for (c in listOf(8.5f, 12f, 15.5f)) { line(c, 2.5f, c, 6f); line(c, 18f, c, 21.5f); line(2.5f, c, 6f, c); line(18f, c, 21.5f, c) }
             }
-            Module.CELLS -> {
-                line(12f, 9.5f, 8f, 21f); line(12f, 9.5f, 16f, 21f); line(9.6f, 16f, 14.4f, 16f); circle(12f, 7.5f, 1.6f, fill = true)
-                arc(12f, 7.5f, 4.5f, -40f, 80f); arc(12f, 7.5f, 8f, -40f, 80f); arc(12f, 7.5f, 4.5f, 140f, 80f); arc(12f, 7.5f, 8f, 140f, 80f)
-            }
-            Module.GNSS -> {
-                rect(9.5f, 9.5f, 5f, 5f, 1f); rect(2.5f, 10f, 5.5f, 4f, 0.5f); rect(16f, 10f, 5.5f, 4f, 0.5f)
-                line(8f, 12f, 9.5f, 12f); line(14.5f, 12f, 16f, 12f); line(12f, 14.5f, 12f, 17f); arc(12f, 20f, 3f, 200f, 140f)
-            }
             Module.SONIC -> { line(4f, 10f, 4f, 14f); line(8f, 7f, 8f, 17f); line(12f, 4f, 12f, 20f); line(16f, 8f, 16f, 16f); line(20f, 10.5f, 20f, 13.5f) }
             Module.PYTHON -> { path(4f, 8f, 8f, 12f, 4f, 16f); path(10f, 8f, 14f, 12f, 10f, 16f); path(16f, 8f, 20f, 12f, 16f, 16f) }
             Module.DECODER -> {
@@ -127,6 +119,7 @@ fun ModuleIcon(module: Module, color: Color, modifier: Modifier = Modifier, size
                 path(4f, 5f, 20f, 5f, 20f, 16f, 11f, 16f, 7f, 20f, 7f, 16f, 4f, 16f, close = true)
                 line(8f, 9f, 16f, 9f); line(8f, 12f, 13f, 12f)
             }
+            Module.BTREMOTE -> { rect(7f, 2.5f, 10f, 19f, 2.5f); circle(12f, 8f, 2.2f); line(10f, 14f, 14f, 14f); line(10f, 17f, 14f, 17f) }
             Module.HOME -> { path(4f, 11f, 12f, 4f, 20f, 11f); rect(6.5f, 10f, 11f, 10f, 1f) }
         }
     }

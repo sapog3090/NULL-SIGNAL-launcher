@@ -19,6 +19,8 @@
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="s" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- BT-ПУЛЬТ: сделать телефон видимым для своего компьютера -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:targetApi="s" />
 
     <!-- АНТИСЛЕЖКА: увидеть ВСЕ приложения, включая скрытые из меню -->
     <uses-permission
@@ -46,6 +48,7 @@
     <uses-feature android:name="android.hardware.consumerir" android:required="false" />
     <uses-feature android:name="android.hardware.camera.flash" android:required="false" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
@@ -91,6 +94,16 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+        <!-- NFC: эмуляция метки со ссылкой или текстом -->
+        <service
+            android:name=".sys.NfcTagService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data android:name="android.nfc.cardemulation.host_apdu_service" android:resource="@xml/apduservice" />
+        </service>
         <!-- Журнал уведомлений (доступ выдаётся вручную в настройках) -->
         <service
             android:name=".sys.NotifLogger"

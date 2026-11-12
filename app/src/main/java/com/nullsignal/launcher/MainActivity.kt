@@ -99,8 +99,6 @@ class MainActivity : ComponentActivity() {
                         Module.SSH -> com.nullsignal.launcher.ui.SshScreen(vm, home)
                         Module.BOARDS -> com.nullsignal.launcher.ui.BoardsScreen(home)
                         Module.MITM -> com.nullsignal.launcher.ui.MitmScreen(home) { vm.fire(com.nullsignal.core.story.Trigger.MITM_DONE) }
-                        Module.CELLS -> com.nullsignal.launcher.ui.CellsScreen(home)
-                        Module.GNSS -> com.nullsignal.launcher.ui.GnssScreen(home)
                         Module.SONIC -> com.nullsignal.launcher.ui.SonicScreen(home)
                         Module.PYTHON -> com.nullsignal.launcher.ui.PythonScreen(vm, home)
                         Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home, vm.moduleArg, { vm.moduleArg = null }) { vm.fire(com.nullsignal.core.story.Trigger.DECODED) }
@@ -108,6 +106,7 @@ class MainActivity : ComponentActivity() {
                         Module.SPECTRUM -> com.nullsignal.launcher.ui.SpectrumScreen(home)
                         Module.DROP -> com.nullsignal.launcher.ui.DropScreen(home)
                         Module.LANCHAT -> com.nullsignal.launcher.ui.LanChatScreen(vm, home)
+                        Module.BTREMOTE -> com.nullsignal.launcher.ui.BtRemoteScreen(home)
                     }
                     }
                     AnimatedVisibility(

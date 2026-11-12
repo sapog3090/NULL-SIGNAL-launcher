@@ -135,11 +135,10 @@ fun HomeScreen(vm: LauncherViewModel) {
         "эфир и железо" to listOf(
             Tile(Module.WIFI, "WIFI-РАДАР", "сети · каналы · двойники", Ns.Green),
             Tile(Module.BLE, "BLE-РАДАР", "bluetooth рядом", Ns.Green),
-            Tile(Module.CELLS, "СОТЫ", "вышки и фальшивые станции", Ns.Red),
-            Tile(Module.GNSS, "СПУТНИКИ", "GPS · ГЛОНАСС · глушилки", Ns.Green),
-            Tile(Module.NFC, "NFC", "метки и карты", Ns.Green),
+            Tile(Module.NFC, "NFC", "чтение · запись · эмуляция", Ns.Green),
             Tile(Module.IR, "ИК-ПУЛЬТ", "ТВ ${com.nullsignal.core.hw.Ir.TV.size} марок · RGB-лента", Ns.Green),
             Tile(Module.BOARDS, "ПЛАТЫ", "USB · Arduino · ESP32", Ns.Green),
+            Tile(Module.BTREMOTE, "BT-ПУЛЬТ", "слайды · мышь · клавиатура", Ns.Red),
             Tile(Module.SPECTRUM, "СПЕКТР", "звук · ультразвуковые маяки", Ns.Green),
             Tile(Module.SENSORS, "ДАТЧИКИ", "металлоискатель · компас", Ns.Green),
         ),

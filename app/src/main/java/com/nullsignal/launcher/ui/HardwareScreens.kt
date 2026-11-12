@@ -527,8 +527,29 @@ fun NfcScreen(onBack: () -> Unit) {
     var isUrl by remember { mutableStateOf(true) }
     var enabled by remember { mutableStateOf(adapter?.isEnabled == true) }
     OnResume { enabled = adapter?.isEnabled == true }
+    val prefs = remember { ctx.getSharedPreferences("nfc", 0) }
+    var emulating by remember { mutableStateOf(false) }
+    var reads by remember { mutableStateOf(0) }
+    // журнал прочитанных меток, как «Сохранённые» у Flipper
+    var log by remember { mutableStateOf(prefs.getString("log", "").orEmpty().lines().filter { it.isNotBlank() }) }
 
-    if (adapter != null && activity != null && enabled) {
+    // эмуляция: телефон сам становится меткой, поэтому чтение на это время выключаем
+    if (adapter != null && activity != null && enabled && emulating) {
+        DisposableEffect(Unit) {
+            val emu = runCatching { android.nfc.cardemulation.CardEmulation.getInstance(adapter) }.getOrNull()
+            val service = android.content.ComponentName(ctx, com.nullsignal.launcher.sys.NfcTagService::class.java)
+            runCatching { emu?.setPreferredService(activity, service) }
+            onDispose {
+                com.nullsignal.launcher.sys.NfcEmu.tag = null
+                runCatching { emu?.unsetPreferredService(activity) }
+            }
+        }
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            while (true) { reads = com.nullsignal.launcher.sys.NfcEmu.reads; kotlinx.coroutines.delay(400) }
+        }
+    }
+
+    if (adapter != null && activity != null && enabled && !emulating) {
         DisposableEffect(adapter, activity) {
             val main = Handler(Looper.getMainLooper())
             val cb = NfcAdapter.ReaderCallback { tag ->
@@ -537,6 +558,11 @@ fun NfcScreen(onBack: () -> Unit) {
                 val desc = runCatching { describeTag(tag) }.getOrDefault(listOf("ошибка" to "не удалось прочитать"))
                 main.post {
                     info.value = desc
+                    val uid = desc.firstOrNull { it.first == "UID" }?.second ?: "?"
+                    val kind = desc.firstOrNull { it.first == "технологии" }?.second.orEmpty()
+                    val line = java.text.SimpleDateFormat("dd.MM HH:mm", java.util.Locale.US).format(java.util.Date()) + "  " + uid + "  " + kind
+                    log = (listOf(line) + log).take(30)
+                    prefs.edit().putString("log", log.joinToString("\n")).apply()
                     if (res != null) { writeResult = res; if (res.startsWith("✓")) pending.value = null }
                 }
             }
@@ -587,6 +613,36 @@ fun NfcScreen(onBack: () -> Unit) {
                 "Подойдут NTAG213/215/216 (наклейки, брелоки). Запиши ссылку на свой профиль, Wi-Fi-страницу или контакт.",
                 style = Ns.small.copy(color = Ns.Dim), modifier = Modifier.padding(top = 8.dp),
             )
+            SectionTitle("эмуляция: телефон сам становится меткой")
+            Text(
+                "Как у Flipper: включи — и другой телефон, приложенный к этому, откроет ссылку или покажет текст из поля выше. Без всякой наклейки. " +
+                    "Экран должен быть включён.",
+                style = Ns.small,
+            )
+            TermButton(
+                if (emulating) "ОСТАНОВИТЬ ЭМУЛЯЦИЮ" else "ВКЛЮЧИТЬ ЭМУЛЯЦИЮ", Modifier.fillMaxWidth().padding(top = 8.dp),
+                color = if (emulating) Ns.Dim else Ns.Red, enabled = emulating || payload.isNotBlank(),
+            ) {
+                if (emulating) {
+                    emulating = false
+                } else {
+                    val msg = if (isUrl) com.nullsignal.core.hw.Ndef.uri(if (payload.contains("://")) payload.trim() else "https://${payload.trim()}")
+                    else com.nullsignal.core.hw.Ndef.text(payload)
+                    com.nullsignal.launcher.sys.NfcEmu.reads = 0
+                    com.nullsignal.launcher.sys.NfcEmu.tag = com.nullsignal.core.hw.NdefT4(msg)
+                    pending.value = null
+                    emulating = true
+                }
+            }
+            if (emulating) {
+                Text("метка активна · считываний: $reads", style = Ns.text.copy(color = Ns.Red), modifier = Modifier.padding(top = 6.dp))
+                Text("если вместо ссылки открывается платёжное приложение — в настройках NFC выбери NULL//SIGNAL для «других» карт", style = Ns.small)
+            }
+            if (log.isNotEmpty()) {
+                SectionTitle("журнал меток · ${log.size}")
+                log.forEach { Text(it, style = Ns.small.copy(color = Ns.Text2)) }
+                Text("[очистить]", style = Ns.small.copy(color = Ns.Red), modifier = Modifier.clickable { log = emptyList(); prefs.edit().remove("log").apply() }.padding(vertical = 6.dp))
+            }
         }
     }
 }

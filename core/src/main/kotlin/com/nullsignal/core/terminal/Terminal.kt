@@ -44,8 +44,6 @@ enum class Module(val id: String, val title: String) {
     CAMS("cams", "КАМЕРЫ"),
     BOARDS("usb", "ПЛАТЫ"),
     MITM("mitm", "ПРОСЛУШКА?"),
-    CELLS("cells", "СОТЫ"),
-    GNSS("gnss", "СПУТНИКИ"),
     SONIC("sonic", "ЗВУКОВОЙ КАНАЛ"),
     PYTHON("py", "PYTHON"),
     DECODER("decode", "ДЕКОДЕР"),
@@ -53,6 +51,7 @@ enum class Module(val id: String, val title: String) {
     SPECTRUM("spectrum", "СПЕКТР"),
     DROP("drop", "ТАЙНИК"),
     LANCHAT("chat", "ЛОКАЛЬНЫЙ ЧАТ"),
+    BTREMOTE("bt", "BT-ПУЛЬТ"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -216,8 +215,6 @@ class Terminal(private val env: TerminalEnv) {
             "cams", "cameras" -> Output(listOf("ищу камеры в сети…"), Action.Open(Module.CAMS))
             "usb", "boards", "serial" -> Output(listOf("открываю USB…"), Action.Open(Module.BOARDS))
             "mitm" -> Output(listOf("проверяю сеть на перехват…"), Action.Open(Module.MITM))
-            "cells", "towers" -> Output(listOf("слушаю вышки…"), Action.Open(Module.CELLS))
-            "gnss", "gps", "sats" -> Output(listOf("ищу спутники…"), Action.Open(Module.GNSS))
             "sonic", "modem" -> Output(listOf("открываю звуковой канал…"), Action.Open(Module.SONIC))
             "py", "python", "python3" -> if (arg.isEmpty()) Output(listOf("запускаю Python…"), Action.Open(Module.PYTHON)) else python(arg)
             "decode", "decoder", "codec" -> Output(listOf("открываю декодер…"), if (arg.isEmpty()) Action.Open(Module.DECODER) else Action.OpenWith(Module.DECODER, arg))
@@ -225,6 +222,7 @@ class Terminal(private val env: TerminalEnv) {
             "spectrum", "fft" -> Output(listOf("слушаю эфир…"), Action.Open(Module.SPECTRUM))
             "drop", "share" -> Output(listOf("открываю тайник…"), Action.Open(Module.DROP))
             "chat", "lan" -> Output(listOf("открываю локальный чат…"), Action.Open(Module.LANCHAT))
+            "bt", "hid", "clicker" -> Output(listOf("включаю Bluetooth-пульт…"), Action.Open(Module.BTREMOTE))
             "ssh" -> Output(listOf("открываю SSH…"), Action.OpenWith(Module.SSH, arg))
             "osint" -> Output(listOf("открываю OSINT…"), Action.OpenWith(Module.OSINT, arg))
             "calc", "=" -> calc(arg)
@@ -421,9 +419,9 @@ class Terminal(private val env: TerminalEnv) {
             "  rand [a b]  coin  dice",
             "",
             "модули: dns mitm stalk xray traces notif osint spy 2fa cams",
-            "        speed sensors nfc ir ssh usb cells gnss sonic exif",
+            "        speed sensors nfc ir ssh usb sonic exif",
             "        audit tools mon games learn py decode file",
-            "        spectrum drop chat  ·  matrix",
+            "        spectrum drop chat bt  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */

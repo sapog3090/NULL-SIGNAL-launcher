@@ -1,7 +1,5 @@
 package com.nullsignal.core
 
-import com.nullsignal.core.hw.Cells
-import com.nullsignal.core.hw.Gnss
 import com.nullsignal.core.hw.UsbInfo
 import com.nullsignal.core.security.Mitm
 import com.nullsignal.core.spy.SoundModem
@@ -46,48 +44,6 @@ class MitmTest {
         assertEquals(Mitm.HttpVerdict.REPLACED, Mitm.checkExample(200, "<h1>Войдите в сеть</h1>"))
         assertEquals(Mitm.HttpVerdict.FAILED, Mitm.checkExample(-1, null))
         assertTrue(Mitm.randomDomain().endsWith(".com"))
-    }
-}
-
-class CellsTest {
-    private fun lte(cid: Long, tac: Int, dbm: Int = -95) = Cells.Cell(Cells.Rat.LTE, true, "250", "01", tac, cid, 100, 1300, dbm, 3)
-
-    @Test fun bandsAndDistance() {
-        assertEquals(3, Cells.lteBand(1300))
-        assertEquals(20, Cells.lteBand(6300))
-        assertEquals(1800, Cells.lteBandMhz(3))
-        assertEquals(234, Cells.distanceMeters(Cells.Rat.LTE, 3))
-        assertNull(Cells.distanceMeters(Cells.Rat.LTE, Int.MAX_VALUE))
-        assertEquals(0x1234L, Cells.enb(0x123456))
-        assertEquals("МТС", Cells.operatorName("250-01"))
-    }
-
-    @Test fun alerts() {
-        val ok = Cells.assess(lte(1000, 7), listOf(lte(1001, 7)), "250-01", emptyList())
-        assertEquals(0, ok.maxOf { it.level })
-        val gsm = Cells.Cell(Cells.Rat.GSM, true, "250", "01", 5, 42, null, 60, -60, 1)
-        val down = Cells.assess(gsm, emptyList(), "250-01", listOf(lte(1000, 7)))
-        assertTrue(down.any { it.level == 2 && "4G" in it.text })
-        val tacChanged = Cells.assess(lte(1000, 9), listOf(lte(1001, 9)), "250-01", listOf(lte(1000, 7)))
-        assertTrue(tacChanged.any { it.level == 2 })
-        val foreign = Cells.assess(lte(1000, 7), listOf(lte(1001, 7)), "250-99", emptyList())
-        assertTrue(foreign.any { it.level == 1 && "Билайн" in it.text })
-    }
-}
-
-class GnssTest {
-    @Test fun alerts() {
-        val sats = (1..8).map { Gnss.Sat(Gnss.System.GPS, it, 30f + it * 2, 40f, it * 40f, true) }
-        assertEquals(0, Gnss.assess(sats, emptyList(), 0).maxOf { it.level })
-        val weak = (1..6).map { Gnss.Sat(Gnss.System.GLONASS, it, 12f, 40f, 0f, false) }
-        assertTrue(Gnss.assess(weak, emptyList(), 120).any { it.level == 2 })
-        val timeSpoof = listOf(Gnss.Fix(1_000_000, 1_010_000, 55.75, 37.62, 5f))
-        assertTrue(Gnss.assess(sats, timeSpoof, 0).any { "время" in it.text })
-        val jump = listOf(Gnss.Fix(1000, 1000, 55.75, 37.62, 5f), Gnss.Fix(11000, 11000, 55.97, 37.41, 5f), Gnss.Fix(21000, 21000, 59.93, 30.31, 5f))
-        assertTrue(Gnss.assess(sats, jump, 0).any { "50 км" in it.text })
-        val uniform = (1..8).map { Gnss.Sat(Gnss.System.GPS, it, 40f, 40f, 0f, true) }
-        assertTrue(Gnss.assess(uniform, emptyList(), 0).any { it.level == 1 })
-        assertEquals(634_000.0, Gnss.distanceMeters(55.75, 37.62, 59.93, 30.31), 15_000.0)
     }
 }
 
