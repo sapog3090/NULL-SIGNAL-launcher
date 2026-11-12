@@ -86,22 +86,87 @@ private suspend fun play(pcm: ShortArray, onProgress: (Float) -> Unit) = withCon
     }
 }
 
-@Composable
-fun SonicScreen(onBack: () -> Unit) {
-    var tab by remember { mutableIntStateOf(0) }
-    var quiet by remember { mutableStateOf(false) }
-    ModuleScreen("ЗВУКОВОЙ КАНАЛ", onBack) {
-        NsTabs(listOf("ПЕРЕДАТЬ", "ПРИНЯТЬ · ${SonicLog.items.size}"), tab, Ns.Red) { tab = it }
-        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Chip("ГРОМКО 1.6–4.3 кГц", if (!quiet) Ns.Red else Ns.Dim, Modifier.clickable { quiet = false })
-            Chip("ТИХО 16.8–18.6 кГц", if (quiet) Ns.Red else Ns.Dim, Modifier.clickable { quiet = true })
+/** Состояние приёмника: живёт на уровне экрана, чтобы приём не прерывался при переходе на «ПЕРЕДАТЬ». */
+private class RxState {
+    var listening by mutableStateOf(false)
+    var level by mutableFloatStateOf(0f)
+    var spectrum by mutableStateOf(FloatArray(16))
+    var receiving by mutableStateOf(false)
+    var progress by mutableStateOf<Pair<Int, Int?>>(0 to null)
+    var status by mutableStateOf<String?>(null)
+}
+
+@SuppressLint("MissingPermission")
+private suspend fun listen(ctx: android.content.Context, rx: RxState, quiet: Boolean) = withContext(Dispatchers.IO) {
+    val am = ctx.getSystemService(AudioManager::class.java)
+    val raw = am?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
+    val source = if (raw) MediaRecorder.AudioSource.UNPROCESSED else MediaRecorder.AudioSource.MIC
+    val min = AudioRecord.getMinBufferSize(SoundModem.RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+    val rec = runCatching {
+        AudioRecord(source, SoundModem.RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, SoundModem.RATE))
+    }.getOrNull()
+    if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) {
+        rx.status = "микрофон недоступен — возможно, он занят другим приложением"
+        rec?.release()
+        rx.listening = false
+        return@withContext
+    }
+    val receiver = SoundModem.Receiver(band(quiet))
+    val chunk = ShortArray(2048)
+    var frame = 0
+    rx.status = if (raw) "микрофон без обработки (лучший вариант)" else "обычный микрофон"
+    try {
+        rec.startRecording()
+        while (isActive) {
+            val k = rec.read(chunk, 0, chunk.size)
+            if (k <= 0) { delay(10); continue }
+            val events = receiver.feed(chunk, k)
+            if (++frame % 3 == 0) {
+                rx.level = receiver.level()
+                rx.spectrum = receiver.spectrum()
+                rx.receiving = receiver.receiving
+                rx.progress = receiver.progress
+            }
+            for (e in events) {
+                withContext(Dispatchers.Main) {
+                    if (e is SoundModem.Receiver.Event.Frame) {
+                        SonicLog.items.add(0, Heard(System.currentTimeMillis(), e.data, quiet))
+                        rx.status = "принято ${e.data.size} байт"
+                    } else {
+                        rx.status = "кадр повреждён: помехи или передачу прервали"
+                    }
+                    Unit
+                }
+            }
         }
-        if (tab == 0) SendTab(quiet) else ReceiveTab(quiet)
+    } finally {
+        runCatching { rec.stop() }
+        rec.release()
+        rx.level = 0f
+        rx.receiving = false
     }
 }
 
 @Composable
-private fun ColumnScope.SendTab(quiet: Boolean) {
+fun SonicScreen(onBack: () -> Unit) {
+    val ctx = LocalContext.current
+    var tab by remember { mutableIntStateOf(0) }
+    var quiet by remember { mutableStateOf(false) }
+    val rx = remember { RxState() }
+    LaunchedEffect(rx.listening, quiet) { if (rx.listening) listen(ctx, rx, quiet) }
+    ModuleScreen("ЗВУКОВОЙ КАНАЛ", onBack) {
+        NsTabs(listOf("ПЕРЕДАТЬ", "ПРИНЯТЬ · ${SonicLog.items.size}"), tab, Ns.Red) { tab = it }
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Chip("ГРОМКО 1.6–4.3 кГц", if (!quiet) Ns.Red else Ns.Dim, Modifier.clickable { quiet = false })
+            Chip("ТИХО 16.8–18.6 кГц", if (quiet) Ns.Red else Ns.Dim, Modifier.clickable { quiet = true })
+            if (rx.listening && tab == 0) PulseDot(if (rx.receiving) Ns.Red else Ns.Green, 7.dp)
+        }
+        if (tab == 0) SendTab(quiet, rx.listening) else ReceiveTab(rx)
+    }
+}
+
+@Composable
+private fun ColumnScope.SendTab(quiet: Boolean, listening: Boolean) {
     val scope = rememberCoroutineScope()
     var text by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -138,8 +203,9 @@ private fun ColumnScope.SendTab(quiet: Boolean) {
             Text(asciiBar(progress, 28), style = Ns.small.copy(color = Ns.Red), modifier = Modifier.padding(top = 4.dp))
         }
         Text(
-            "Проверка на одном телефоне: открой «ПРИНЯТЬ», включи приём, вернись сюда и отправь — телефон услышит сам себя.",
-            style = Ns.small.copy(color = Ns.Dim),
+            if (listening) "Приём включён: телефон услышит и собственную передачу — результат появится во вкладке «ПРИНЯТЬ»."
+            else "Проверка на одном телефоне: во вкладке «ПРИНЯТЬ» включи приём, вернись сюда и отправь — телефон услышит сам себя.",
+            style = Ns.small.copy(color = if (listening) Ns.Green else Ns.Dim),
             modifier = Modifier.padding(vertical = 10.dp),
         )
     }
@@ -177,95 +243,34 @@ private fun ToneSpectrum(values: FloatArray, active: Boolean, modifier: Modifier
     }
 }
 
-@SuppressLint("MissingPermission")
 @Composable
-private fun ColumnScope.ReceiveTab(quiet: Boolean) {
-    val ctx = LocalContext.current
+private fun ColumnScope.ReceiveTab(rx: RxState) {
     val (granted, request) = rememberPermissions(arrayOf(Manifest.permission.RECORD_AUDIO))
-    var listening by remember { mutableStateOf(false) }
-    var level by remember { mutableFloatStateOf(0f) }
-    var spectrum by remember { mutableStateOf(FloatArray(16)) }
-    var receiving by remember { mutableStateOf(false) }
-    var progress by remember { mutableStateOf<Pair<Int, Int?>>(0 to null) }
-    var status by remember { mutableStateOf<String?>(null) }
     if (!granted) {
         PermissionGate("Чтобы слушать эфир, нужен микрофон. Звук разбирается на телефоне и никуда не записывается.", request)
         return
     }
-    LaunchedEffect(listening, quiet) {
-        if (!listening) return@LaunchedEffect
-        val b = band(quiet)
-        withContext(Dispatchers.IO) {
-            val am = ctx.getSystemService(AudioManager::class.java)
-            val raw = am?.getProperty(AudioManager.PROPERTY_SUPPORT_AUDIO_SOURCE_UNPROCESSED) == "true"
-            val source = if (raw) MediaRecorder.AudioSource.UNPROCESSED else MediaRecorder.AudioSource.MIC
-            val min = AudioRecord.getMinBufferSize(SoundModem.RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
-            val rec = runCatching {
-                AudioRecord(source, SoundModem.RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(min, SoundModem.RATE))
-            }.getOrNull()
-            if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) {
-                status = "микрофон занят другим приложением"
-                rec?.release()
-                listening = false
-                return@withContext
-            }
-            val rx = SoundModem.Receiver(b)
-            val chunk = ShortArray(2048)
-            var frame = 0
-            status = if (raw) "микрофон без обработки (лучший вариант)" else "обычный микрофон"
-            try {
-                rec.startRecording()
-                while (isActive) {
-                    val k = rec.read(chunk, 0, chunk.size)
-                    if (k <= 0) { delay(10); continue }
-                    val events = rx.feed(chunk, k)
-                    if (++frame % 3 == 0) {
-                        level = rx.level()
-                        spectrum = rx.spectrum()
-                        receiving = rx.receiving
-                        progress = rx.progress
-                    }
-                    for (e in events) {
-                        withContext(Dispatchers.Main) {
-                            if (e is SoundModem.Receiver.Event.Frame) {
-                                SonicLog.items.add(0, Heard(System.currentTimeMillis(), e.data, quiet))
-                                status = "принято ${e.data.size} байт"
-                            } else {
-                                status = "кадр повреждён: помехи или передачу прервали"
-                            }
-                            Unit
-                        }
-                    }
-                }
-            } finally {
-                runCatching { rec.stop() }
-                rec.release()
-                level = 0f
-                receiving = false
-            }
-        }
-    }
     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
-        val color = when { receiving -> Ns.Red; listening -> Ns.Green; else -> Ns.Dim }
+        val color = when { rx.receiving -> Ns.Red; rx.listening -> Ns.Green; else -> Ns.Dim }
         Column(Modifier.fillMaxWidth().hud(color).padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (listening) PulseDot(color)
+                if (rx.listening) PulseDot(color)
                 Text(
-                    when { receiving -> "  ПРИНИМАЮ"; listening -> "  СЛУШАЮ ЭФИР"; else -> "ПРИЁМ ВЫКЛЮЧЕН" },
+                    when { rx.receiving -> "  ПРИНИМАЮ"; rx.listening -> "  СЛУШАЮ ЭФИР"; else -> "ПРИЁМ ВЫКЛЮЧЕН" },
                     style = Ns.title.copy(color = color, fontSize = 18.sp),
                 )
             }
-            ToneSpectrum(spectrum, receiving, Modifier.fillMaxWidth().height(64.dp).padding(top = 8.dp))
-            HudBar(level * 4f, if (receiving) Ns.Red else Ns.Green, Modifier.padding(top = 6.dp), height = 3.dp)
-            if (receiving) {
-                val (got, total) = progress
+            ToneSpectrum(rx.spectrum, rx.receiving, Modifier.fillMaxWidth().height(64.dp).padding(top = 8.dp))
+            HudBar(rx.level * 4f, if (rx.receiving) Ns.Red else Ns.Green, Modifier.padding(top = 6.dp), height = 3.dp)
+            if (rx.receiving) {
+                val (got, total) = rx.progress
                 Text(
                     if (total == null) "поймал преамбулу, читаю длину…" else "символ $got из $total",
                     style = Ns.small.copy(color = Ns.Red),
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            status?.let { Text(it, style = Ns.small, modifier = Modifier.padding(top = 4.dp)) }
+            rx.status?.let { Text(it, style = Ns.small, modifier = Modifier.padding(top = 4.dp)) }
         }
         SonicLog.items.forEach { h -> key(h) { HeardCard(h) } }
         if (SonicLog.items.isEmpty()) {
@@ -276,9 +281,9 @@ private fun ColumnScope.ReceiveTab(quiet: Boolean) {
             )
         }
     }
-    TermButton(if (listening) "ОСТАНОВИТЬ ПРИЁМ" else "СЛУШАТЬ", Modifier.fillMaxWidth(), color = if (listening) Ns.Dim else Ns.Red) {
-        listening = !listening
-        if (listening) status = null
+    TermButton(if (rx.listening) "ОСТАНОВИТЬ ПРИЁМ" else "СЛУШАТЬ", Modifier.fillMaxWidth(), color = if (rx.listening) Ns.Dim else Ns.Red) {
+        rx.listening = !rx.listening
+        if (rx.listening) rx.status = null
     }
 }
 
