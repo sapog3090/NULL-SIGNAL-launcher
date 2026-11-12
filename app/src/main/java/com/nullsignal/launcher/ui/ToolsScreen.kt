@@ -187,7 +187,7 @@ private fun CryptTab() {
     }
 }
 
-private fun qrBitmap(text: String, size: Int = 512): ImageBitmap {
+internal fun qrBitmap(text: String, size: Int = 512): ImageBitmap {
     val m = QRCodeWriter().encode(text, BarcodeFormat.QR_CODE, size, size, mapOf(EncodeHintType.MARGIN to 1, EncodeHintType.CHARACTER_SET to "UTF-8"))
     val px = IntArray(size * size) { i -> if (m.get(i % size, i / size)) 0xFF00FF66.toInt() else 0xFF040704.toInt() }
     return Bitmap.createBitmap(px, size, size, Bitmap.Config.ARGB_8888).asImageBitmap()

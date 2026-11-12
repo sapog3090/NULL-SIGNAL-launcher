@@ -50,6 +50,9 @@ enum class Module(val id: String, val title: String) {
     PYTHON("py", "PYTHON"),
     DECODER("decode", "ДЕКОДЕР"),
     FILECHECK("file", "ПРОВЕРКА ФАЙЛА"),
+    SPECTRUM("spectrum", "СПЕКТР"),
+    DROP("drop", "ТАЙНИК"),
+    LANCHAT("chat", "ЛОКАЛЬНЫЙ ЧАТ"),
 }
 
 /** Данные об устройстве и игре, которые терминал может показать. */
@@ -196,6 +199,9 @@ class Terminal(private val env: TerminalEnv) {
             "py", "python", "python3" -> Output(listOf("запускаю Python…"), Action.Open(Module.PYTHON))
             "decode", "decoder", "codec" -> Output(listOf("открываю декодер…"), Action.Open(Module.DECODER))
             "file", "filecheck", "checkfile" -> Output(listOf("открываю проверку файла…"), Action.Open(Module.FILECHECK))
+            "spectrum", "fft" -> Output(listOf("слушаю эфир…"), Action.Open(Module.SPECTRUM))
+            "drop", "share" -> Output(listOf("открываю тайник…"), Action.Open(Module.DROP))
+            "chat", "lan" -> Output(listOf("открываю локальный чат…"), Action.Open(Module.LANCHAT))
             "ssh" -> Output(listOf("открываю SSH…"), Action.OpenWith(Module.SSH, arg))
             "osint" -> Output(listOf("открываю OSINT…"), Action.OpenWith(Module.OSINT, arg))
             "calc", "=" -> calc(arg)
@@ -392,7 +398,8 @@ class Terminal(private val env: TerminalEnv) {
             "",
             "модули: dns mitm stalk xray traces notif osint spy 2fa cams",
             "        speed sensors nfc ir ssh usb cells gnss sonic exif",
-            "        audit tools mon games learn py decode file  ·  matrix",
+            "        audit tools mon games learn py decode file",
+            "        spectrum drop chat  ·  matrix",
         )
 
         /** Команды, которые выполняет Android-часть. Значение — подсказка, если аргументы обязательны. */

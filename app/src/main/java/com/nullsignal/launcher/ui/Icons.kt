@@ -117,6 +117,16 @@ fun ModuleIcon(module: Module, color: Color, modifier: Modifier = Modifier, size
                 path(6f, 3f, 14f, 3f, 18f, 7f, 18f, 21f, 6f, 21f, close = true)
                 path(14f, 3f, 14f, 7f, 18f, 7f); path(9f, 14f, 11f, 16.5f, 15f, 11.5f)
             }
+            Module.SPECTRUM -> path(3f, 16f, 6f, 16f, 8f, 8f, 10f, 18f, 12f, 5f, 14f, 17f, 16f, 11f, 18f, 16f, 21f, 16f)
+            Module.DROP -> {
+                rect(4f, 14f, 16f, 6f, 1f)
+                line(9f, 4f, 9f, 11f); path(6.5f, 6.5f, 9f, 4f, 11.5f, 6.5f)
+                line(15f, 4f, 15f, 11f); path(12.5f, 8.5f, 15f, 11f, 17.5f, 8.5f)
+            }
+            Module.LANCHAT -> {
+                path(4f, 5f, 20f, 5f, 20f, 16f, 11f, 16f, 7f, 20f, 7f, 16f, 4f, 16f, close = true)
+                line(8f, 9f, 16f, 9f); line(8f, 12f, 13f, 12f)
+            }
             Module.HOME -> { path(4f, 11f, 12f, 4f, 20f, 11f); rect(6.5f, 10f, 11f, 10f, 1f) }
         }
     }

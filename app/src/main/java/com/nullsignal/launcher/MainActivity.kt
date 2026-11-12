@@ -103,6 +103,9 @@ class MainActivity : ComponentActivity() {
                         Module.PYTHON -> com.nullsignal.launcher.ui.PythonScreen(vm, home)
                         Module.DECODER -> com.nullsignal.launcher.ui.DecoderScreen(home)
                         Module.FILECHECK -> com.nullsignal.launcher.ui.FileCheckScreen(home)
+                        Module.SPECTRUM -> com.nullsignal.launcher.ui.SpectrumScreen(home)
+                        Module.DROP -> com.nullsignal.launcher.ui.DropScreen(home)
+                        Module.LANCHAT -> com.nullsignal.launcher.ui.LanChatScreen(vm, home)
                     }
                     }
                     AnimatedVisibility(

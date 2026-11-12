@@ -125,6 +125,8 @@ fun HomeScreen(vm: LauncherViewModel) {
             Tile(Module.SPEED, "СПИДТЕСТ", "скорость интернета", Ns.Green),
             Tile(Module.TERMINAL, "ТЕРМИНАЛ", "80+ команд", Ns.Green),
             Tile(Module.SSH, "SSH", "удалённый доступ", Ns.Green),
+            Tile(Module.DROP, "ТАЙНИК", "файлы по Wi-Fi без облаков", Ns.Green),
+            Tile(Module.LANCHAT, "ЛОКАЛЬНЫЙ ЧАТ", "шифрованный, без интернета", Ns.Green),
         ),
         "разведка" to listOf(
             Tile(Module.OSINT, "OSINT", "ник · почта · IP · домен", Ns.Red),
@@ -138,6 +140,7 @@ fun HomeScreen(vm: LauncherViewModel) {
             Tile(Module.NFC, "NFC", "метки и карты", Ns.Green),
             Tile(Module.IR, "ИК-ПУЛЬТ", "ТВ ${com.nullsignal.core.hw.Ir.TV.size} марок · RGB-лента", Ns.Green),
             Tile(Module.BOARDS, "ПЛАТЫ", "USB · Arduino · ESP32", Ns.Green),
+            Tile(Module.SPECTRUM, "СПЕКТР", "звук · ультразвуковые маяки", Ns.Green),
             Tile(Module.SENSORS, "ДАТЧИКИ", "металлоискатель · компас", Ns.Green),
         ),
         "крипто и шпионаж" to listOf(
