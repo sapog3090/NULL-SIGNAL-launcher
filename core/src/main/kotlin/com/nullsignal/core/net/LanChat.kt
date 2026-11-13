@@ -146,6 +146,34 @@ object Stun {
     }
 }
 
+/**
+ * Приглашение в комнату для QR-кода: nullsignal://chat?room=…&lan=1&far=1[&srv=…].
+ * Внутри — кодовое слово, поэтому QR показывают только лично, а не пересылают.
+ */
+data class ChatInvite(val room: String, val lan: Boolean = true, val far: Boolean = true, val server: String? = null) {
+    fun uri(): String = buildString {
+        append("nullsignal://chat?room=").append(URLEncoder.encode(room.trim(), "UTF-8"))
+        append("&lan=").append(if (lan) 1 else 0)
+        append("&far=").append(if (far) 1 else 0)
+        val srv = server?.let { runCatching { NtfyRelay.normalize(it) }.getOrNull() }
+        if (far && srv != null && srv != NtfyRelay.DEFAULT) append("&srv=").append(URLEncoder.encode(srv, "UTF-8"))
+    }
+
+    companion object {
+        fun parse(text: String): ChatInvite? {
+            val t = text.trim()
+            if (!t.startsWith("nullsignal://chat?")) return null
+            val q = t.substringAfter('?').split('&').mapNotNull { kv ->
+                val p = kv.split('=', limit = 2)
+                if (p.size != 2) null else p[0] to runCatching { java.net.URLDecoder.decode(p[1], "UTF-8") }.getOrDefault("")
+            }.toMap()
+            val room = q["room"]?.trim()?.takeIf { it.length >= 4 } ?: return null
+            val srv = q["srv"]?.let { runCatching { NtfyRelay.normalize(it) }.getOrNull() }
+            return ChatInvite(room, q["lan"] != "0", q["far"] != "0", srv)
+        }
+    }
+}
+
 class RelayException(val code: Int, message: String) : IOException(message)
 
 /** Ретранслятор: хранит и раздаёт зашифрованные пакеты. Видит только шифр, IP и время. */

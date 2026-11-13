@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.nullsignal.core.net.ChatInvite
 import com.nullsignal.core.net.ChatNode
 import com.nullsignal.core.net.NtfyRelay
 
@@ -41,7 +42,22 @@ object ChatSession {
 
     /** Экран чата сейчас на виду. */
     @Volatile var visible = false
-        set(v) { field = v; if (v) unread = 0 }
+        set(v) {
+            field = v
+            if (v) { unread = 0; appCtx?.let { ChatService.cancelMessages(it) } }
+        }
+
+    /** Приложение на экране (между onStart и onStop): тогда вместо системного уведомления — всплывашка. */
+    @Volatile var appVisible = true
+
+    /** С чем зашли в комнату — для QR-приглашения. */
+    var invite by mutableStateOf<ChatInvite?>(null)
+        private set
+
+    /** Пришло приглашение по ссылке или QR: экран чата заполнит поля. */
+    var pendingInvite by mutableStateOf<ChatInvite?>(null)
+
+    private var appCtx: Context? = null
 
     /** Что делать с новым сообщением, пока экран закрыт (показать уведомление). */
     var onIncoming: ((ChatNode.Message) -> Unit)? = null
@@ -55,6 +71,8 @@ object ChatSession {
     /** Вход в комнату. Долгая операция (PBKDF2 + сокет) — вызывать не из главного потока. */
     fun join(ctx: Context, room: String, nick: String, lan: Boolean, server: String?, selfId: Long): ChatNode {
         leave()
+        val app = ctx.applicationContext
+        appCtx = app
         main.post {
             messages.clear()
             delivered.clear()
@@ -66,10 +84,10 @@ object ChatSession {
             room, nick, ChatNode.DEFAULT_PORT,
             targets = if (lan) ({ ChatNode.localBroadcasts() }) else ({ emptyList() }),
             onMessage = { m -> main.post { add(m) } },
-            onPeers = { p -> main.post { peers = p } },
+            onPeers = { p -> main.post { peers = p; describe() } },
             relay = server?.let { NtfyRelay(it) },
             stunServers = if (server != null) ChatNode.STUN_SERVERS else emptyList(),
-            onStatus = { s -> main.post { status = s } },
+            onStatus = { s -> main.post { status = s; describe() } },
             onSent = { id -> main.post { delivered[id] = true } },
             selfId = selfId,
         )
@@ -85,7 +103,11 @@ object ChatSession {
             this.lan = lan
             far = server != null
             joinedAt = System.currentTimeMillis()
+            invite = ChatInvite(room, lan, server != null, server)
+            describe()
         }
+        // служба держит сеть живой, пока телефон в кармане
+        ChatService.start(app)
         return n
     }
 
@@ -97,7 +119,7 @@ object ChatSession {
         // свежие чужие сообщения, пока экран закрыт: считаем и показываем уведомление (история не в счёт)
         if (!m.mine && !visible && System.currentTimeMillis() - m.time < 5 * 60_000L) {
             unread++
-            onIncoming?.invoke(m)
+            if (appVisible) onIncoming?.invoke(m) else appCtx?.let { ChatService.message(it, m.from, m.text) }
         }
     }
 
@@ -110,9 +132,27 @@ object ChatSession {
             node = null
             peers = emptyList()
             status = ChatNode.Status()
+            invite = null
         }
         runCatching { lock?.release() }
         lock = null
+        appCtx?.let { ChatService.stop(it) }
+    }
+
+    /** Строка для постоянного уведомления: кто в эфире и как. */
+    private fun describe() {
+        val ctx = appCtx ?: return
+        val n = node ?: return
+        val parts = ArrayList<String>()
+        parts += "комната ${n.fingerprint}"
+        parts += if (peers.isEmpty()) "в эфире только ты" else "в эфире: " + peers.joinToString { it.nick }
+        when (status.relay) {
+            ChatNode.RelayState.ONLINE -> parts += "сервер ✓"
+            ChatNode.RelayState.ERROR -> parts += "сервер ✕"
+            else -> {}
+        }
+        if (status.bridge) parts += "мост"
+        ChatService.refresh(ctx, parts.joinToString(" · "))
     }
 
     /** Выйти из комнаты и закрыть точку Wi-Fi Direct, если её поднимали. */

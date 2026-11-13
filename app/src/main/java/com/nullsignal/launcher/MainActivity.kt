@@ -131,6 +131,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        com.nullsignal.launcher.sys.ChatSession.appVisible = true
+    }
+
+    override fun onStop() {
+        com.nullsignal.launcher.sys.ChatSession.appVisible = false
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         vm.refreshApps() // приложения могли установить или удалить
@@ -145,6 +155,18 @@ class MainActivity : ComponentActivity() {
 
     /** «Поделиться → NULL//SIGNAL» из любого приложения: файл открываем в проверке, текст — в декодере. */
     private fun handleShare(intent: android.content.Intent?) {
+        // уведомление шифрочата или QR-приглашение — открываем чат
+        if (intent?.getStringExtra(com.nullsignal.launcher.sys.ChatService.EXTRA_OPEN) == "chat") {
+            vm.screen = Module.LANCHAT
+            return
+        }
+        if (intent?.action == android.content.Intent.ACTION_VIEW && intent.data?.scheme == "nullsignal") {
+            com.nullsignal.core.net.ChatInvite.parse(intent.dataString ?: "")?.let {
+                com.nullsignal.launcher.sys.ChatSession.pendingInvite = it
+                vm.screen = Module.LANCHAT
+            }
+            return
+        }
         if (intent?.action != android.content.Intent.ACTION_SEND) return
         val uri: android.net.Uri? = if (android.os.Build.VERSION.SDK_INT >= 33) {
             intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)

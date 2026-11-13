@@ -8,6 +8,12 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- Шифрочат в фоне: служба держит связь, новые сообщения — уведомлением -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission
+        android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING"
+        tools:targetApi="upside_down_cake" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Wi-Fi Direct для шифрочата без роутера (Android 13+); геолокация для этого не нужна -->
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
@@ -92,6 +98,13 @@
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Приглашение в шифрочат по QR: nullsignal://chat?room=… (только заполняет поля, само не входит) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nullsignal" android:host="chat" />
+            </intent-filter>
             <!-- «Поделиться → NULL//SIGNAL»: файл уходит на проверку, текст — в декодер -->
             <intent-filter android:label="Проверить в NULL//SIGNAL">
                 <action android:name="android.intent.action.SEND" />
@@ -119,6 +132,11 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+        <!-- Шифрочат: комната остаётся на связи, пока приложение свёрнуто -->
+        <service
+            android:name=".sys.ChatService"
+            android:exported="false"
+            android:foregroundServiceType="remoteMessaging" />
         <!-- DNS-перехватчик и файрвол -->
         <service
             android:name=".sys.DnsVpnService"

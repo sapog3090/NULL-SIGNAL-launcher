@@ -1,6 +1,7 @@
 package com.nullsignal.core
 
 import com.nullsignal.core.net.ChatCrypto
+import com.nullsignal.core.net.ChatInvite
 import com.nullsignal.core.net.ChatNode
 import com.nullsignal.core.net.ChatNode.Via
 import com.nullsignal.core.net.NtfyRelay
@@ -175,6 +176,19 @@ class ChatTest {
         assertTrue(ChatNode.isLocal(InetAddress.getByName("100.72.1.9"))) // NAT оператора
         assertFalse(ChatNode.isLocal(InetAddress.getByName("93.184.216.34")))
         assertTrue(ChatNode.localBroadcasts().any { it.address.hostAddress == "255.255.255.255" })
+    }
+
+    @Test fun invites() {
+        val inv = ChatInvite("старый маяк & 7 ветров", lan = true, far = true, server = "relay.example.org/")
+        val uri = inv.uri()
+        assertTrue(uri, uri.startsWith("nullsignal://chat?room="))
+        assertFalse("пробелы и & не ломают ссылку", uri.substringAfter("room=").substringBefore("&lan").contains(' '))
+        assertEquals(inv.copy(server = "https://relay.example.org"), ChatInvite.parse(uri))
+        // сервер по умолчанию в ссылку не пишем
+        assertFalse(ChatInvite("красный клён", server = NtfyRelay.DEFAULT).uri().contains("srv="))
+        assertEquals(ChatInvite("красный клён", lan = false, far = true), ChatInvite.parse("nullsignal://chat?room=%D0%BA%D1%80%D0%B0%D1%81%D0%BD%D1%8B%D0%B9+%D0%BA%D0%BB%D1%91%D0%BD&lan=0&far=1"))
+        assertNull(ChatInvite.parse("https://example.com/?room=1234"))
+        assertNull(ChatInvite.parse("nullsignal://chat?room=abc"))
     }
 
     @Test fun stunPackets() {

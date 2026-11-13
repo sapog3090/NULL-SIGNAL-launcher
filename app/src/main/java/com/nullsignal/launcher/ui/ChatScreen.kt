@@ -35,7 +35,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.nullsignal.core.net.ChatCrypto
+import com.nullsignal.core.net.ChatInvite
 import com.nullsignal.core.net.ChatNode
 import com.nullsignal.core.net.ChatNode.Via
 import com.nullsignal.core.net.NtfyRelay
@@ -106,6 +108,37 @@ fun LanChatScreen(vm: LauncherViewModel, onBack: () -> Unit) {
     val messages = session.messages
     val peers = session.peers
     val status = session.status
+    // уведомления о сообщениях, пока приложение свёрнуто (Android 13+ спрашивает разрешение)
+    val (notifGranted, askNotif) = rememberPermissions(
+        if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray(),
+    )
+    var showQr by remember { mutableStateOf(false) }
+    var note by remember { mutableStateOf<String?>(null) }
+
+    fun applyInvite(inv: ChatInvite) {
+        room = inv.room
+        useLan = inv.lan
+        useFar = inv.far
+        inv.server?.let { server = it }
+        note = "поля заполнены из приглашения. Сверь отпечаток комнаты с тем, кто показал QR"
+    }
+    LaunchedEffect(session.pendingInvite) {
+        val inv = session.pendingInvite ?: return@LaunchedEffect
+        if (session.node == null) {
+            applyInvite(inv)
+        } else {
+            note = "чтобы перейти по приглашению, выйди из текущей комнаты"
+        }
+        session.pendingInvite = null
+    }
+    fun scanInvite() {
+        GmsBarcodeScanning.getClient(ctx).startScan()
+            .addOnSuccessListener { code ->
+                val inv = ChatInvite.parse(code.rawValue ?: "")
+                if (inv != null) applyInvite(inv) else error = "это не приглашение NULL//SIGNAL"
+            }
+            .addOnFailureListener { error = "сканер недоступен: ${it.message}" }
+    }
 
     // экран открыт — уведомления не нужны; закрыли экран — комната продолжает работать
     DisposableEffect(Unit) {
@@ -150,6 +183,8 @@ fun LanChatScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         prefs.edit().putString("room", word).putString("nick", nick.trim()).putBoolean("lan", useLan)
             .putBoolean("far", useFar).putString("server", server.trim()).apply()
         error = null
+        note = null
+        if (!notifGranted) askNotif()
         joining = true
         val lan = useLan
         val who = nick.trim().ifEmpty { "аноним" }
@@ -168,6 +203,12 @@ fun LanChatScreen(vm: LauncherViewModel, onBack: () -> Unit) {
                     "Переписка, которую никто не читает: ключ AES-256 получается из кодового слова и не покидает телефон. " +
                         "Рядом — по Wi-Fi без интернета, далеко — напрямую через интернет (P2P) или через ретранслятор, который видит только шифр.",
                     style = Ns.small,
+                )
+                note?.let { Text(it, style = Ns.small.copy(color = Ns.Amber), modifier = Modifier.padding(top = 6.dp)) }
+                Text(
+                    "▣ сканировать QR-приглашение",
+                    style = Ns.small.copy(color = Ns.Red),
+                    modifier = Modifier.padding(top = 8.dp).clickable { scanInvite() },
                 )
                 SectionTitle("позывной")
                 NsField(nick, { nick = it.take(24) }, "как тебя подписывать")
@@ -239,7 +280,21 @@ fun LanChatScreen(vm: LauncherViewModel, onBack: () -> Unit) {
         val netN = peers.count { it.via == Via.RELAY }
         Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("комната ${n.fingerprint}", style = Ns.label.copy(color = Ns.Red), modifier = Modifier.weight(1f))
+            Chip(if (showQr) "СКРЫТЬ QR" else "QR", Ns.Red, Modifier.clickable { showQr = !showQr })
+            Spacer(Modifier.width(5.dp))
             Chip("ВЫЙТИ", Ns.Dim, Modifier.clickable { session.close() })
+        }
+        val inv = session.invite
+        if (showQr && inv != null) {
+            val qr = remember(inv) { qrBitmap(inv.uri(), 480) }
+            Column(Modifier.fillMaxWidth().padding(vertical = 6.dp).hud(Ns.Red.copy(alpha = 0.5f)).padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                androidx.compose.foundation.Image(qr, "QR-приглашение", Modifier.width(200.dp).height(200.dp))
+                Text(
+                    "Покажи лично: собеседник сканирует QR в шифрочате или камерой — поля заполнятся сами. " +
+                        "В QR кодовое слово, поэтому не пересылай его и не публикуй.",
+                    style = Ns.small.copy(color = Ns.Amber), modifier = Modifier.padding(top = 6.dp),
+                )
+            }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             if (session.lan) Chip("WI-FI $lanN", if (lanN > 0) Ns.Green else Ns.Dim)
@@ -260,8 +315,9 @@ fun LanChatScreen(vm: LauncherViewModel, onBack: () -> Unit) {
             style = Ns.small.copy(color = if (peers.isEmpty()) Ns.Dim else Ns.Green), maxLines = 2,
             modifier = Modifier.padding(top = 4.dp),
         )
-        val note = status.error ?: status.nat
-        if (note != null && session.far) Text(note, style = Ns.small.copy(color = if (status.error != null) Ns.Amber else Ns.Dim), maxLines = 2)
+        note?.let { Text(it, style = Ns.small.copy(color = Ns.Amber), maxLines = 2) }
+        val info = status.error ?: status.nat
+        if (info != null && session.far) Text(info, style = Ns.small.copy(color = if (status.error != null) Ns.Amber else Ns.Dim), maxLines = 2)
         if (status.bridge) Text("ты — мост: пересылаешь сообщения между Wi-Fi и интернетом", style = Ns.small.copy(color = Ns.Amber))
 
         val day = remember { SimpleDateFormat("dd.MM HH:mm", Locale.US) }
